@@ -38,7 +38,9 @@ jobs:
             cd "$HOME/Bridge-Web"
 
             echo "Pulling latest UAT code..."
-            git pull origin uat
+            git fetch origin uat
+            git checkout uat
+            git reset --hard origin/uat
 
             echo "Installing dependencies..."
             npm ci
