@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/modal/Modal";
 import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
+import { StepProgress } from "@/components/onboarding/StepProgress";
 import { useOnboarding, type OnboardingData } from "@/components/onboarding/OnboardingProvider";
 import { COUNTRIES, CONTINENTS, continentForCountry, DIAL_CODES } from "@/lib/countries";
 import { phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
@@ -609,6 +610,7 @@ export default function CompleteProfilePage() {
     <main className="mx-auto flex min-h-[calc(100vh-80px)] max-w-[960px] items-center justify-center px-4 py-8">
       <div className="flex w-full flex-col gap-5 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:p-8">
         <FocusedHeader backLabel="Back to Overview" backHref="/registration/verify-account" />
+        <StepProgress stepKey="profile" />
 
         <div className="flex flex-col gap-1">
           <h1 className="font-headline text-2xl font-bold leading-tight tracking-tight text-on-surface md:text-3xl">
@@ -957,7 +959,7 @@ export default function CompleteProfilePage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="cta-gradient flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3 text-xs font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:transform-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:gap-2 sm:px-5 sm:text-base"
+              className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3 text-xs font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:gap-2 sm:px-5 sm:text-base"
             >
               {isSubmitting ? (
                 <Loader size={18} />

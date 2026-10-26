@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
+import { StepProgress } from "@/components/onboarding/StepProgress";
 import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
@@ -271,6 +272,7 @@ export default function VerifyAccountPage() {
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
       <div className="w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
         <FocusedHeader backHref="/registration" />
+        <StepProgress stepKey="verification" />
 
         <div className="mb-3 text-center">
           <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
@@ -374,7 +376,7 @@ export default function VerifyAccountPage() {
           type="button"
           onClick={handleContinue}
           disabled={!bothVerified}
-          className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40"
         >
           Continue
         </button>

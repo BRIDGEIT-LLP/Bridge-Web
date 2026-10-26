@@ -44,7 +44,7 @@ export function stepNumber(key: string): number {
   return getStepIndex(key) + 1;
 }
 
-/** Progress 0–100 for the given step (step N of 5 → N*20). */
+/** Progress 0–100 for the given step, counting only completed steps (step N of 5 → (N-1)*20). */
 export function progressForStep(key: string): number {
-  return Math.round((stepNumber(key) / ONBOARDING_STEPS.length) * 100);
+  return Math.round(((stepNumber(key) - 1) / ONBOARDING_STEPS.length) * 100);
 }

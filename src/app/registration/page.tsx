@@ -29,9 +29,9 @@ import type { ApiError } from "@/lib/axios";
 type FieldCheckStatus = "idle" | "checking" | "verified";
 
 const ROLES = [
-  { value: "startup", label: "Startup" },
-  { value: "investor", label: "Investor" },
-  { value: "b2b_enterprise", label: "B2B Enterprise" },
+  { value: "startup", label: "Startup", description: "Raise and grow" },
+  { value: "investor", label: "Investor", description: "Discover deals" },
+  { value: "b2b_enterprise", label: "B2B Enterprise", description: "Source and supply" },
 ];
 
 // Maps the UI role values to the backend's expected enum.
@@ -86,8 +86,9 @@ export default function RegisterPage() {
     setError,
     clearErrors,
     trigger,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isValid },
   } = useForm<RegisterForm>({
+    mode: "onBlur",
     defaultValues: {
       legalName: "",
       email: "",
@@ -315,9 +316,39 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-1">
             <h2 className="font-headline text-2xl font-bold text-on-surface">Company Registration</h2>
           </div>
-          {/* <StepProgress stepKey="details" /> */}
+          <StepProgress stepKey="details" />
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className={LABEL}>
+                I Am Registering As<span className="align-middle text-base leading-none text-error"> *</span>
+              </label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {ROLES.map((r) => (
+                  <label
+                    key={r.value}
+                    className={`flex cursor-pointer flex-col gap-0.5 rounded-lg border px-3.5 py-2.5 transition-all hover:border-primary/60 ${
+                      role === r.value
+                        ? "border-primary bg-primary/5"
+                        : "border-outline-variant/30 bg-surface-container-low"
+                    }`}
+                  >
+                    <span className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-on-surface">{r.label}</span>
+                      <input
+                        type="radio"
+                        value={r.value}
+                        className="sr-only"
+                        {...field("role", { required: "Please select a role." })}
+                      />
+                    </span>
+                    <span className="text-xs text-on-surface-variant">{r.description}</span>
+                  </label>
+                ))}
+              </div>
+              <ErrorText msg={errors.role?.message} />
+            </div>
+
             <Input
               id="legalName"
               type="text"
@@ -446,35 +477,16 @@ export default function RegisterPage() {
               />
             </div>
 
+            {!showPasswordHelp && (
+              <p className="-mt-2 px-1 text-xs text-on-surface-variant">At least 8 characters with a number.</p>
+            )}
+
             {showPasswordHelp && (
               <>
                 <PasswordStrengthMeter value={passwordVal} />
                 <PasswordRequirements value={passwordVal} />
               </>
             )}
-
-            <div className="flex flex-col gap-2">
-              <label className={LABEL}>
-                Select Your Role<span className="align-middle text-base leading-none text-error"> *</span>
-              </label>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                {ROLES.map((r) => (
-                  <label
-                    key={r.value}
-                    className="flex h-10 cursor-pointer items-center gap-2.5 px-1 transition-all hover:opacity-85"
-                  >
-                    <input
-                      type="radio"
-                      value={r.value}
-                      className="size-4 cursor-pointer accent-primary border-outline-variant text-primary focus:ring-primary/20"
-                      {...field("role", { required: "Please select a role." })}
-                    />
-                    <span className="text-sm font-medium text-on-surface cursor-pointer select-none">{r.label}</span>
-                  </label>
-                ))}
-              </div>
-              <ErrorText msg={errors.role?.message} />
-            </div>
 
             {/* B2B-only: GST + CIN, revealed after role selection */}
             {isB2B && (
@@ -573,16 +585,19 @@ export default function RegisterPage() {
               }}
             />
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <button
                 type="submit"
-                disabled={isSubmitting || gstStatus === "checking" || cinStatus === "checking"}
-                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isSubmitting || !isValid || gstStatus === "checking" || cinStatus === "checking"}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isSubmitting ? <Loader size={18} /> : "Continue"}
               </button>
+              <p className="text-center text-xs text-on-surface-variant">
+                Complete all required fields and accept the terms to continue
+              </p>
               <p className="text-center text-sm text-on-surface-variant">
-                Already registered? <Link href="/login" className="font-bold text-primary hover:underline">Sign in to portal</Link>
+                Already registered? <Link href="/login" className="font-bold text-primary hover:underline">Sign in</Link>
               </p>
             </div>
           </form>
