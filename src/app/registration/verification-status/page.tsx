@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Loader } from "@/components/common/loader";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
+import { StepProgress } from "@/components/onboarding/StepProgress";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { DocumentUploadCard, type ScannedDoc, type UploadSlot } from "@/components/onboarding/DocumentUploadCard";
 import { DOC_MAX_MB } from "@/config/docTypes";
@@ -323,13 +324,10 @@ export default function VerificationStatusPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-4">
-    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-3 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-4">
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[760px] flex-col justify-center gap-4 px-4 py-4">
+    <StepProgress stepKey="status" showLabels={false} />
+    <div className="flex w-full flex-col gap-3 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-4">
       <FocusedHeader backLabel="Back to Overview" backHref="/registration/document-upload" showLogout />
-
-      {/* <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
-         <StepProgress stepKey="status" showLabels={false} /> 
-      </div> */}
 
       {/* Status hero — pending / approved / rejected from company `kycStatus`. */}
       <div className="flex flex-col items-center text-center sm:px-4">

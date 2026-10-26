@@ -7,10 +7,10 @@ import { Icon } from "@/components/ui/Icon";
 import { DocumentUploadCard, type ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
 import { DOC_TYPE, DOC_MAX_MB } from "@/config/docTypes";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
-import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
+import { StepProgress } from "@/components/onboarding/StepProgress";
 import { saveKycInfo } from "@/services/kyc.service";
 import { PAN_REGEX, AADHAAR_REGEX } from "@/lib/validation";
 import type { KycDocFile } from "@/types/api.types";
@@ -97,8 +97,9 @@ export default function DocumentUploadPage() {
     PAN_REGEX.test((panNumber ?? "").toUpperCase());
 
   return (
-    <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-3 lg:p-8">
+    <main className="mx-auto flex min-h-[calc(100vh-80px)] w-full max-w-3xl flex-col justify-center gap-4 px-4 py-8">
+      <StepProgress stepKey="kycdoc" />
+      <div className="flex w-full flex-col gap-2 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-3 lg:p-8">
       <FocusedHeader backHref="/registration/complete-profile" showLogout />
       <div>
         <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface sm:text-2xl">Document Upload</h2>
@@ -190,15 +191,20 @@ export default function DocumentUploadPage() {
         {isSubmitted && <ErrorText msg={errors.pan?.message as string | undefined} />}
 
         <div className="flex flex-col gap-3">
-          <Button
+          <button
             type="submit"
-            variant="primary"
             disabled={!allProvided || submitting}
-            className="h-12 rounded-xl max-sm:px-4 max-sm:text-sm"
-            trailingIcon={submitting ? undefined : "chevron_right"}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40 max-sm:px-4 max-sm:text-sm"
           >
-            {submitting ? <Loader size={18} /> : "Submit for Verification"}
-          </Button>
+            {submitting ? (
+              <Loader size={18} />
+            ) : (
+              <>
+                Submit for Verification
+                <Icon name="chevron_right" size={20} />
+              </>
+            )}
+          </button>
         </div>
       </form>
       </div>
