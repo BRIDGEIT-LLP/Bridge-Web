@@ -309,6 +309,7 @@ export default function VerifyAccountPage() {
                     value={field.value}
                     onChange={(next) => handleMobileChange(next, field.onChange)}
                     disabled={mobileVerified}
+                    error={!!mobileError}
                   />
                 )}
               />
@@ -351,6 +352,7 @@ export default function VerifyAccountPage() {
                     value={field.value}
                     onChange={(next) => handleEmailChange(next, field.onChange)}
                     disabled={emailVerified}
+                    error={!!emailError}
                   />
                 )}
               />
@@ -375,7 +377,7 @@ export default function VerifyAccountPage() {
             type="button"
             onClick={handleContinue}
             disabled={!bothVerified}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled"
           >
             Continue
           </button>

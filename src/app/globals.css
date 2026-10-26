@@ -68,6 +68,23 @@
   --color-on-error: #fff7f6;
   --color-on-error-container: #752121;
 
+  /*
+    UX-proposal palette (Bridge_UX_Proposal-2.pdf, page 7) — exact hex values
+    for the registration + login screens' button/field/OTP states (page 8, 4).
+    Kept separate from the Stitch tokens above (used app-wide) so this only
+    applies where a component opts in explicitly.
+  */
+  --color-primary-hover: #0a49b0;
+  --color-primary-pressed: #083c92;
+  --color-primary-tint: #eaf1fc;
+  --color-primary-disabled: #a8bfe8;
+  --color-ink: #1a1f2b;
+  --color-muted: #5b6472;
+  --color-field-border: #cfd6df;
+  --color-success: #1f7a4d;
+  --color-error-tint: #fbeeed;
+  --color-warning: #b26a00;
+
   /* Fonts (match Stitch fontFamily: headline=Manrope, body/label=Inter) */
   --font-body: var(--font-inter), Inter, sans-serif;
   --font-headline: var(--font-manrope), Manrope, sans-serif;

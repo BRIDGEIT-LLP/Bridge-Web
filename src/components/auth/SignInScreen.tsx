@@ -238,6 +238,7 @@ export function SignInScreen({
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
             <Input
+              variant="ux"
               id="email"
               type="email"
               label="Official Email Address"
@@ -268,6 +269,7 @@ export function SignInScreen({
                 </Link>
               </div>
               <Input
+                variant="ux"
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••••••"
@@ -290,7 +292,7 @@ export function SignInScreen({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled"
               >
                 {isSubmitting ? <Loader size={18} /> : "Sign In"}
               </button>

@@ -112,6 +112,7 @@ export default function DocumentUploadPage() {
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Input
+            variant="ux"
             id="aadhaarNumber"
             type="text"
             label="Aadhaar Number"
@@ -128,6 +129,7 @@ export default function DocumentUploadPage() {
             })}
           />
           <Input
+            variant="ux"
             id="panNumber"
             type="text"
             label="PAN Number"
@@ -194,7 +196,7 @@ export default function DocumentUploadPage() {
           <button
             type="submit"
             disabled={!allProvided || submitting}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40 max-sm:px-4 max-sm:text-sm"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled max-sm:px-4 max-sm:text-sm"
           >
             {submitting ? (
               <Loader size={18} />
