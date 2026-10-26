@@ -350,6 +350,7 @@ export default function RegisterPage() {
             </div>
 
             <Input
+              variant="ux"
               id="legalName"
               type="text"
               label="Legal Company Name"
@@ -365,6 +366,7 @@ export default function RegisterPage() {
             />
 
             <Input
+              variant="ux"
               id="email"
               type="email"
               label="Official Email Address"
@@ -432,6 +434,7 @@ export default function RegisterPage() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
+                variant="ux"
                 id="password"
                 type={showPassword ? "text" : "password"}
                 label="Password"
@@ -455,6 +458,7 @@ export default function RegisterPage() {
                 }}
               />
               <Input
+                variant="ux"
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 label="Confirm Password"
@@ -492,6 +496,7 @@ export default function RegisterPage() {
             {isB2B && (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Input
+                  variant="ux"
                   id="gstNumber"
                   type="text"
                   label="GST Number"
@@ -512,6 +517,7 @@ export default function RegisterPage() {
                   onBlur={handleGstBlur}
                 />
                 <Input
+                  variant="ux"
                   id="cinNumber"
                   type="text"
                   label="CIN Number"
@@ -589,7 +595,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || !isValid || gstStatus === "checking" || cinStatus === "checking"}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled"
               >
                 {isSubmitting ? <Loader size={18} /> : "Continue"}
               </button>

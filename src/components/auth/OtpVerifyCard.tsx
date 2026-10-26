@@ -25,7 +25,16 @@ interface OtpVerifyCardProps {
   onVerify: (code: string) => Promise<{ message?: string } | void>;
   /** Re-trigger the OTP send. Throws to keep the resend button active. */
   onResend: () => Promise<void>;
+  /**
+   * Overrides the "Verify and Continue" button's className. Defaults to the
+   * original gradient/glow treatment so password-reset keeps its current look;
+   * the login-MFA screen opts into the flat UX-proposal button via this prop.
+   */
+  continueButtonClassName?: string;
 }
+
+const DEFAULT_CONTINUE_BUTTON_CLASSNAME =
+  "cta-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:transform-none disabled:cursor-not-allowed disabled:opacity-60";
 
 /**
  * Presentational OTP-entry card shared by the login-MFA verify screen and the
@@ -42,6 +51,7 @@ export function OtpVerifyCard({
   channelLabel,
   onVerify,
   onResend,
+  continueButtonClassName = DEFAULT_CONTINUE_BUTTON_CLASSNAME,
 }: OtpVerifyCardProps) {
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [verifying, setVerifying] = useState(false);
@@ -101,7 +111,7 @@ export function OtpVerifyCard({
               {!verified && <ResendControl onResend={handleResend} />}
             </div>
 
-            <OtpInput value={otp} onChange={handleChange} />
+            <OtpInput value={otp} onChange={handleChange} error={!!error} />
 
             {verified ? (
               <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
@@ -120,7 +130,7 @@ export function OtpVerifyCard({
           type="button"
           onClick={() => verify(otp.join(""))}
           disabled={verified || verifying || otp.join("").length !== OTP_LENGTH}
-          className="cta-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:transform-none disabled:cursor-not-allowed disabled:opacity-60"
+          className={continueButtonClassName}
         >
           Verify and Continue
         </button>
