@@ -183,6 +183,7 @@ export function VerifyOtpScreen({
         channelLabel={isPhone ? "Mobile OTP" : "Email OTP"}
         onVerify={handleVerify}
         onResend={handleResend}
+        continueButtonClassName="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled"
       />
 
       {/* Rendered outside OtpVerifyCard so it portal-mounts cleanly to document.body */}

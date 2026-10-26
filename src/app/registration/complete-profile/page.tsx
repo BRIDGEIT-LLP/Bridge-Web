@@ -720,6 +720,7 @@ export default function CompleteProfilePage() {
             </span>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Input
+                variant="ux"
                 label="Company Name"
                 required
                 readOnly
@@ -733,6 +734,7 @@ export default function CompleteProfilePage() {
                 name="role"
                 render={({ field }) => (
                   <Input
+                    variant="ux"
                     label="Role"
                     required
                     readOnly
@@ -744,6 +746,7 @@ export default function CompleteProfilePage() {
                 )}
               />
               <Input
+                variant="ux"
                 label="Email"
                 required
                 type="email"
@@ -812,6 +815,7 @@ export default function CompleteProfilePage() {
               {role === "b2b_enterprise" && (
                 <>
                   <Input
+                    variant="ux"
                     label="GST Number"
                     required
                     readOnly
@@ -821,6 +825,7 @@ export default function CompleteProfilePage() {
                     {...register("gstNumber")}
                   />
                   <Input
+                    variant="ux"
                     label="CIN Number"
                     required
                     readOnly
@@ -841,6 +846,7 @@ export default function CompleteProfilePage() {
             </span>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
+                variant="ux"
                 id="firstName"
                 label="First Name"
                 required
@@ -851,6 +857,7 @@ export default function CompleteProfilePage() {
                 {...register("firstName", { required: "First name is required." })}
               />
               <Input
+                variant="ux"
                 id="lastName"
                 label="Last Name"
                 required
@@ -959,7 +966,7 @@ export default function CompleteProfilePage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3 text-xs font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:gap-2 sm:px-5 sm:text-base"
+              className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3 text-xs font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled sm:h-12 sm:gap-2 sm:px-5 sm:text-base"
             >
               {isSubmitting ? (
                 <Loader size={18} />

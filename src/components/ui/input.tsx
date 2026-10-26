@@ -5,6 +5,9 @@ import React, { forwardRef } from "react";
  * duplicate class strings:
  * - `filled` — the boxed field used across onboarding and the admin tables (default).
  * - `underline` — the editorial bottom-rule field from the Super Admin panel design.
+ * - `ux` — exact palette from Bridge_UX_Proposal-2.pdf (page 7/8); opt-in only, used
+ *   by the registration and login screens so the `filled` default stays unchanged
+ *   everywhere else (dashboard tables, etc.).
  * Height is set by each caller (Select's multi-select grows).
  */
 export const FIELD_STYLES = {
@@ -19,6 +22,12 @@ export const FIELD_STYLES = {
       "rounded-none border-0 border-b border-outline-variant bg-transparent px-0 font-medium hover:border-outline focus:border-surface-tint focus:ring-0",
     label: "font-label text-[11px] font-bold uppercase tracking-wider text-on-secondary-container",
     error: "border-b-error",
+  },
+  ux: {
+    control:
+      "rounded-lg border border-field-border bg-surface-container-low px-3.5 hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/10",
+    label: "px-1 font-label text-xs font-bold tracking-wide text-muted",
+    error: "border-error bg-error-tint",
   },
 } as const;
 
