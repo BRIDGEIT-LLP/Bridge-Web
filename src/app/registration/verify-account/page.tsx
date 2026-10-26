@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
+import { StepProgress } from "@/components/onboarding/StepProgress";
 import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
@@ -62,7 +63,7 @@ export function ResendControl({
     <div className="flex min-w-[10px] items-center justify-center font-label text-sm font-semibold text-on-surface-variant">
       {seconds > 0 ? (
         <span>
-          <span className="font-bold text-on-surface">0:{String(seconds).padStart(2, "0")}</span>
+          Resend code in <span className="font-bold text-on-surface">0:{String(seconds).padStart(2, "0")}</span>
         </span>
       ) : (
         <button
@@ -269,37 +270,35 @@ export default function VerifyAccountPage() {
 
   return (
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
-      <div className="w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
-        <FocusedHeader backHref="/registration" />
+      <div className="flex w-full max-w-[560px] flex-col gap-4">
+        <StepProgress stepKey="verification" />
 
-        <div className="mb-3 text-center">
-          <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
-            Secure your account
-          </h1>
-          <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
-            {bothVerified
-              ? "Both your mobile and email are verified."
-              : <>We&apos;ve sent a 4-digit code to your mobile phone {maskedMobile} and email {maskedEmail}.</>}
-          </p>
-        </div>
+        <div className="rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
+          <FocusedHeader backHref="/registration" />
 
-        <div className="space-y-6">
-          {/* <div className="flex flex-col gap-4">
-          <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-            <Icon name="smartphone" size={16} /> Mobile OTP
-          </label>
-          <OtpInput value={mobileOtp} onChange={setMobileOtp} />
-        </div> */}
+          <div>
+            <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
+              Secure your account
+            </h1>
+            <p className="max-w-md text-base leading-relaxed text-on-surface-variant">
+              {bothVerified
+                ? "Both your mobile and email are verified."
+                : "We've sent a 4-digit code to your mobile phone and email. Enter both to continue."}
+            </p>
+          </div>
 
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
-              <div className="flex items-center justify-between gap-4">
-                <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-                  <Icon name="smartphone" size={16} />
-                  Mobile OTP
-                </label>
-
-                {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
+          <div className="flex flex-col gap-5">
+            <div className="flex w-fit flex-col gap-2">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <label className="font-label text-sm font-bold text-on-surface">Mobile code</label>
+                  <p className="text-xs text-on-surface-variant">{maskedMobile}</p>
+                </div>
+                {!mobileVerified && (
+                  <span className="shrink-0 whitespace-nowrap text-xs font-medium text-on-surface-variant">
+                    Wrong number? <button type="button" className="font-bold text-primary hover:underline">Edit</button>
+                  </span>
+                )}
               </div>
 
               <Controller
@@ -322,27 +321,26 @@ export default function VerifyAccountPage() {
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
               ) : mobileError ? (
                 <span className="px-1 text-xs font-medium text-error">{mobileError}</span>
-              ) : null}
+              ) : (
+                <div className="self-start">
+                  <ResendControl onResend={handleResendMobileOtp} />
+                </div>
+              )}
             </div>
-          </div>
 
+            <hr className="border-outline-variant/30" />
 
-          {/* <div className="flex flex-col gap-4">
-          <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-            <Icon name="mail" size={16} /> Email OTP
-          </label>
-          <OtpInput value={emailOtp} onChange={setEmailOtp} />
-        </div> */}
-
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
-              <div className="flex items-center justify-between gap-4">
-                <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-                  <Icon name="mail" size={16} />
-                  Email OTP
-                </label>
-
-                {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
+            <div className="flex w-fit flex-col gap-2">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <label className="font-label text-sm font-bold text-on-surface">Email code</label>
+                  <p className="text-xs text-on-surface-variant">{maskedEmail}</p>
+                </div>
+                {!emailVerified && (
+                  <span className="shrink-0 whitespace-nowrap text-xs font-medium text-on-surface-variant">
+                    Wrong email? <button type="button" className="font-bold text-primary hover:underline">Edit</button>
+                  </span>
+                )}
               </div>
 
               <Controller
@@ -365,19 +363,23 @@ export default function VerifyAccountPage() {
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
               ) : emailError ? (
                 <span className="px-1 text-xs font-medium text-error">{emailError}</span>
-              ) : null}
+              ) : (
+                <div className="self-start">
+                  <ResendControl onResend={handleResendEmailOtp} />
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={handleContinue}
-          disabled={!bothVerified}
-          className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none"
-        >
-          Continue
-        </button>
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={!bothVerified}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Continue
+          </button>
+        </div>
       </div>
     </main>
   );
