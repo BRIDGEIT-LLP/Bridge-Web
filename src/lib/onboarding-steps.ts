@@ -17,10 +17,10 @@ export interface OnboardingStep {
 }
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
-  { key: "details", route: "/registration", label: "Details", title: "Company Registration" },
-  { key: "verification", route: "/registration/verify-account", label: "Verification", title: "Secure your account" },
+  { key: "details", route: "/registration", label: "Register", title: "Company Registration" },
+  { key: "verification", route: "/registration/verify-account", label: "Verify", title: "Secure your account" },
   { key: "profile", route: "/registration/complete-profile", label: "Profile", title: "Complete your profile" },
-  { key: "kycdoc", route: "/registration/document-upload", label: "KYC-DOC", title: "Document Upload" },
+  { key: "kycdoc", route: "/registration/document-upload", label: "Documents", title: "Document Upload" },
   { key: "status", route: "/registration/verification-status", label: "Status", title: "Verification in Progress" },
 ];
 

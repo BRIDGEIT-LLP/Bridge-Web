@@ -607,10 +607,10 @@ export default function CompleteProfilePage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-80px)] max-w-[960px] items-center justify-center px-4 py-8">
+    <main className="mx-auto flex min-h-[calc(100vh-80px)] max-w-[960px] flex-col justify-center gap-4 px-4 py-8">
+      <StepProgress stepKey="profile" />
       <div className="flex w-full flex-col gap-5 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:p-8">
         <FocusedHeader backLabel="Back to Overview" backHref="/registration/verify-account" />
-        <StepProgress stepKey="profile" />
 
         <div className="flex flex-col gap-1">
           <h1 className="font-headline text-2xl font-bold leading-tight tracking-tight text-on-surface md:text-3xl">

@@ -311,12 +311,12 @@ export default function RegisterPage() {
       </div>
 
       {/* Right: form card */}
-      <div className="lg:col-span-7">
+      <div className="flex flex-col gap-4 lg:col-span-7">
+        <StepProgress stepKey="details" />
         <Card padding="lg" className="flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-3 lg:!p-6">
           <div className="flex flex-col gap-1">
             <h2 className="font-headline text-2xl font-bold text-on-surface">Company Registration</h2>
           </div>
-          <StepProgress stepKey="details" />
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
@@ -329,12 +329,12 @@ export default function RegisterPage() {
                     key={r.value}
                     className={`flex cursor-pointer flex-col gap-0.5 rounded-lg border px-3.5 py-2.5 transition-all hover:border-primary/60 ${
                       role === r.value
-                        ? "border-primary bg-primary/5"
+                        ? "border-primary bg-primary-container"
                         : "border-outline-variant/30 bg-surface-container-low"
                     }`}
                   >
                     <span className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-on-surface">{r.label}</span>
+                      <span className={`text-sm font-bold ${role === r.value ? "text-primary" : "text-on-surface"}`}>{r.label}</span>
                       <input
                         type="radio"
                         value={r.value}
@@ -434,9 +434,9 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                label="Account Password"
+                label="Password"
                 required
-                placeholder="••••••••••••"
+                placeholder="Create a password"
                 error={errors.password?.message}
                 adornment={
                   <button
@@ -459,7 +459,7 @@ export default function RegisterPage() {
                 type={showConfirmPassword ? "text" : "password"}
                 label="Confirm Password"
                 required
-                placeholder="••••••••••••"
+                placeholder="Repeat password"
                 error={errors.confirmPassword?.message}
                 adornment={
                   <button
