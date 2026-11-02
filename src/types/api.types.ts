@@ -70,6 +70,24 @@ export interface LoginPayload {
 }
 
 /**
+ * Reminder the backend attaches to the login / MFA-verify response on every sign-in from a
+ * company's first KYC rejection until KYC is approved. Keyed on the rejection counter, not
+ * on `kycStatus` (a resubmission moves the status back to "Pending" but the user is still
+ * that many strikes closer to being blocked).
+ */
+export interface KycRejectionWarning {
+  kycStatus?: string | null;
+  kycRejectionCount: number;
+  /** Configurable on the backend (`kyc_max_rejections`); never hard-code it. */
+  maxRejections: number;
+  attemptsRemaining: number;
+  /** Admin's reason, only while the status is "Rejected". */
+  kycRejectionReason?: string | null;
+  /** Ready-to-show sentence built by the backend. */
+  message?: string;
+}
+
+/**
  * Response from the login endpoint. The pre-MFA token is set as an httpOnly cookie
  * directly on this response — nothing token-shaped is in the body. `redirectTo` is
  * the route the backend wants the client to land on (e.g. the next pending
@@ -88,6 +106,8 @@ export interface LoginResponse {
     /** Already-masked contact info for display on the verification-channel screen. */
     maskedMobile?: string;
     maskedEmail?: string;
+    /** Present only while the company has >= 1 KYC rejection and is not yet approved. */
+    kycRejection?: KycRejectionWarning;
   };
 }
 
@@ -248,6 +268,8 @@ export interface VerifyMfaOtpResponse {
     countryCode?: string;
     /** The registered company name — locked "Company Name" field on complete-profile. */
     companyName?: string;
+    /** Present only while the company has >= 1 KYC rejection and is not yet approved. */
+    kycRejection?: KycRejectionWarning;
     /** Company channel verification flags — used when landing on verify-account after login. */
     isEmailVerified?: boolean;
     isPhoneVerified?: boolean;
@@ -489,6 +511,11 @@ export interface GetKycDocsResponse {
   kycStatus?: string | null;
   /** The admin's reason for rejecting. Only set when `kycStatus` is "Rejected". */
   rejectionReason?: string | null;
+  /** Lifetime number of final KYC rejections (survives resubmission). */
+  kycRejectionCount?: number;
+  /** Configured number of rejections after which the email is blocked. */
+  maxRejections?: number;
+  attemptsRemaining?: number;
 }
 
 /* ===========================================================================
@@ -705,6 +732,11 @@ export interface KycSubmissionListItem {
   status: KycReviewStatus;
   /** Company-level reject note (`kyc_rejection_reason`). Set only after account reject. */
   rejectionReason?: string | null;
+  /** Prior final rejections (`kyc_rejection_count`) and the configured block limit. */
+  kycRejectionCount?: number;
+  maxRejections?: number;
+  /** The company's email is currently in the blocked-email list (separate from suspension). */
+  emailBlocked?: boolean;
   /** Earliest document upload time (ISO 8601). */
   submittedAt?: string;
   documents: KycDocument[];
@@ -1227,6 +1259,8 @@ export interface TrialSettings {
   manualExtension: boolean;
   autoDowngrade: boolean;
   expiryNotification: boolean;
+  /** Final KYC rejections after which the company email is blocked (backend: 1-10). */
+  kycMaxRejections: number;
 }
 
 /** Global feature flags (System Management → Platform Controls). */

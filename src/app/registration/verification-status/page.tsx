@@ -274,6 +274,19 @@ export default function VerificationStatusPage() {
   // approved / rejected swap the hero copy (rejected also shows the admin's reason).
   const accountStatus = toReviewState(kyc?.kycStatus);
   const isRejected = accountStatus === "REJECTED";
+  // From the first rejection until approval (counter-based, so it also shows after a
+  // resubmission has moved the status back to Pending). `maxRejections` is configurable.
+  const showAttemptsWarning =
+    (kyc?.kycRejectionCount ?? 0) >= 1 && accountStatus !== "APPROVED" && kyc?.attemptsRemaining != null;
+  const isLastAttempt = kyc?.attemptsRemaining === 1;
+  const attemptsMessage = isLastAttempt
+    ? "This is your last attempt. If your KYC is rejected again, this account will be blocked."
+    : `Your KYC has been rejected ${kyc?.kycRejectionCount} of ${kyc?.maxRejections} times. ${kyc?.attemptsRemaining} attempts remaining before this account is blocked.`;
+
+  // Warn on arrival (not at sign-in). The fixed id stops a duplicate toast on re-render.
+  useEffect(() => {
+    if (showAttemptsWarning) toast.warning(attemptsMessage, { id: "kyc-attempts-warning", duration: 10000 });
+  }, [showAttemptsWarning, attemptsMessage]);
   const isApproved = accountStatus === "APPROVED";
   const isPending = accountStatus === "PENDING";
   const copy = ACCOUNT_COPY[accountStatus];
@@ -346,6 +359,19 @@ export default function VerificationStatusPage() {
           <StatusPill {...KYC_REVIEW_STATUS_META[accountStatus]} />
         </div>
       </div>
+
+      {/* Attempts left before the account is blocked */}
+      {showAttemptsWarning && (
+        <div
+          role="alert"
+          className="flex w-full items-start gap-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-on-surface"
+        >
+          <Icon name="warning" size={20} className="mt-0.5 shrink-0 text-error" />
+          <p>
+            {attemptsMessage}
+          </p>
+        </div>
+      )}
 
       {/* Why it was rejected — the admin's note from the review, read-only */}
       {isRejected && (

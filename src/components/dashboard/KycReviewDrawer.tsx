@@ -99,6 +99,10 @@ export function KycReviewDrawer({
   const accountPending = submission?.status === "PENDING";
   const canApproveAccount = Boolean(accountPending && allDocsApproved);
   const canRejectAccount = Boolean(accountPending && !anyDocPending && anyDocRejected);
+  // Final-rejection counter (survives resubmission) vs the configurable block limit.
+  const priorRejections = submission?.kycRejectionCount ?? 0;
+  const maxRejections = submission?.maxRejections;
+  const willBlockOnReject = maxRejections != null && priorRejections + 1 >= maxRejections;
 
   // Approve / reject a single document (document-action endpoint; optimistic UI).
   // The document-level API takes only kyc_id + action — no reason — so no note check.
@@ -130,9 +134,21 @@ export function KycReviewDrawer({
       toast.error("This submission is missing its company reference.");
       return;
     }
+    // A reject that reaches the configured limit permanently blocks the applicant's email.
+    if (action === "REJECT" && willBlockOnReject) {
+      const ok = window.confirm(
+        `This is rejection ${priorRejections + 1} of ${maxRejections}. Rejecting will block ${
+          submission.email ?? "this email"
+        } from signing in or registering again. Continue?`
+      );
+      if (!ok) return;
+    }
     setSubmitting(action);
     try {
       const res = await reviewKyc(submission.companyId, { action, note: note.trim() || undefined });
+      if (action === "REJECT" && (res.data as { isEmailBlocked?: boolean } | undefined)?.isEmailBlocked) {
+        toast.warning("The applicant's email has been blocked.");
+      }
       toast.success(res.message ?? "Review submitted.");
       onReviewed();
       onClose();
@@ -297,6 +313,22 @@ export function KycReviewDrawer({
               );
             })}
           </div>
+
+          {/* Blocked-email state — separate from suspension. */}
+          {submission.emailBlocked && (
+            <div className="mt-4 rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-on-surface">
+              <p className="mb-0.5 text-xs font-bold uppercase tracking-wide text-error">Email blocked</p>
+              This applicant was rejected {priorRejections} time{priorRejections === 1 ? "" : "s"} and the email is blocked.
+            </div>
+          )}
+          {!submission.emailBlocked && priorRejections > 0 && (
+            <div className="mt-4 rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-on-surface">
+              <p className="mb-0.5 text-xs font-bold uppercase tracking-wide text-error">Previous rejections</p>
+              Rejected {priorRejections}
+              {maxRejections != null ? ` of ${maxRejections}` : ""} time{priorRejections === 1 ? "" : "s"} so far.
+              {willBlockOnReject ? " Rejecting again will block this email." : ""}
+            </div>
+          )}
 
           {/* Account reject note — company.kyc_rejection_reason, not per-document. */}
           {submission.status === "REJECTED" && (

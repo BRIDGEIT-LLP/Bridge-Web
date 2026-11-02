@@ -46,6 +46,7 @@ const TRIAL_FIELD_LABELS: Record<keyof TrialSettings, string> = {
   manualExtension: "Manual Extension",
   autoDowngrade: "Auto Downgrade",
   expiryNotification: "Expiry Notifications",
+  kycMaxRejections: "KYC rejections before email is blocked",
 };
 
 /** The three switches in the Trial Management card (labels come from TRIAL_FIELD_LABELS). */
@@ -458,6 +459,17 @@ export default function SystemManagementPage() {
                   label={TRIAL_FIELD_LABELS.freeTrialConnectionLimit}
                   value={trial.value.freeTrialConnectionLimit}
                   onChange={(e) => setTrial("freeTrialConnectionLimit", toNumber(e.target.value))}
+                  disabled={!trial.editing}
+                />
+                <Input
+                  id="kyc-max-rejections"
+                  variant="underline"
+                  type="number"
+                  min={1}
+                  max={10}
+                  label={TRIAL_FIELD_LABELS.kycMaxRejections}
+                  value={trial.value.kycMaxRejections}
+                  onChange={(e) => setTrial("kycMaxRejections", toNumber(e.target.value))}
                   disabled={!trial.editing}
                 />
               </div>

@@ -96,6 +96,7 @@ const TRIAL_KEYS: Record<keyof TrialSettings, string> = {
   manualExtension: "manual_extension",
   autoDowngrade: "auto_downgrade",
   expiryNotification: "expiry_notification",
+  kycMaxRejections: "kyc_max_rejections",
 };
 
 /** Shipped trial values — the fallback for any field the response omits. */
@@ -105,6 +106,7 @@ export const DEFAULT_TRIAL_SETTINGS: TrialSettings = {
   manualExtension: true,
   autoDowngrade: true,
   expiryNotification: true,
+  kycMaxRejections: 3,
 };
 
 /**
@@ -137,6 +139,7 @@ export function toTrialSettings(raw: unknown): TrialSettings {
     manualExtension: bool(flat[TRIAL_KEYS.manualExtension], d.manualExtension),
     autoDowngrade: bool(flat[TRIAL_KEYS.autoDowngrade], d.autoDowngrade),
     expiryNotification: bool(flat[TRIAL_KEYS.expiryNotification], d.expiryNotification),
+    kycMaxRejections: num(flat[TRIAL_KEYS.kycMaxRejections], d.kycMaxRejections),
   };
 }
 
