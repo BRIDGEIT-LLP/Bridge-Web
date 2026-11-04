@@ -46,6 +46,7 @@ const TRIAL_FIELD_LABELS: Record<keyof TrialSettings, string> = {
   manualExtension: "Manual Extension",
   autoDowngrade: "Auto Downgrade",
   expiryNotification: "Expiry Notifications",
+  kycMaxRejections: "KYC rejections before email is blocked",
 };
 
 /** The three switches in the Trial Management card (labels come from TRIAL_FIELD_LABELS). */
@@ -66,6 +67,10 @@ const PLATFORM_FLAGS: { key: keyof PlatformFlags; label: string; description: st
 
 /** Number inputs: empty string → 0 rather than NaN. */
 const toNumber = (raw: string) => (raw === "" ? 0 : Number(raw));
+
+// Valid range for the KYC rejection limit; enforced before save (HTML min/max don't block it).
+const KYC_MAX_REJECTIONS_MIN = 1;
+const KYC_MAX_REJECTIONS_MAX = 10;
 
 /**
  * Field label for one OTP config row: the backend `lookup` with its underscores opened out
@@ -346,7 +351,16 @@ export default function SystemManagementPage() {
       changes: (Object.keys(trialChanges) as (keyof TrialSettings)[]).map((key) =>
         changeLine(TRIAL_FIELD_LABELS[key], trial.value[key])
       ),
-      save: () => saveSection(trial, () => updateTrialSettings(trialChanges), "Trial settings"),
+      save: () => {
+        const limit = trial.value.kycMaxRejections;
+        if (!Number.isInteger(limit) || limit < KYC_MAX_REJECTIONS_MIN || limit > KYC_MAX_REJECTIONS_MAX) {
+          toast.error(
+            `${TRIAL_FIELD_LABELS.kycMaxRejections} must be a whole number from ${KYC_MAX_REJECTIONS_MIN} to ${KYC_MAX_REJECTIONS_MAX}.`
+          );
+          return Promise.resolve(false);
+        }
+        return saveSection(trial, () => updateTrialSettings(trialChanges), "Trial settings");
+      },
     },
     flags: {
       editor: flags as SectionEditor<unknown>,
@@ -458,6 +472,17 @@ export default function SystemManagementPage() {
                   label={TRIAL_FIELD_LABELS.freeTrialConnectionLimit}
                   value={trial.value.freeTrialConnectionLimit}
                   onChange={(e) => setTrial("freeTrialConnectionLimit", toNumber(e.target.value))}
+                  disabled={!trial.editing}
+                />
+                <Input
+                  id="kyc-max-rejections"
+                  variant="underline"
+                  type="number"
+                  min={1}
+                  max={10}
+                  label={TRIAL_FIELD_LABELS.kycMaxRejections}
+                  value={trial.value.kycMaxRejections}
+                  onChange={(e) => setTrial("kycMaxRejections", toNumber(e.target.value))}
                   disabled={!trial.editing}
                 />
               </div>

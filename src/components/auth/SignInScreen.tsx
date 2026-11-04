@@ -157,7 +157,11 @@ export function SignInScreen({
       toast.success(res.message ?? SUCCESS_MESSAGES.LOGIN);
       router.push(`${basePath}/select-channel`);
     } catch (err) {
-      toast.error((err as ApiError).message ?? ERROR_MESSAGES.LOGIN_FAILED);
+      const apiErr = err as ApiError;
+      // Blocked email (KYC rejected too many times): keep the message on screen longer
+      // than a normal error toast — the user cannot do anything else from here.
+      const isBlocked = Boolean((apiErr.data as { data?: { isEmailBlocked?: boolean } } | undefined)?.data?.isEmailBlocked);
+      toast.error(apiErr.message ?? ERROR_MESSAGES.LOGIN_FAILED, isBlocked ? { duration: 15000 } : undefined);
     }
   };
 
