@@ -102,7 +102,8 @@ export function KycReviewDrawer({
   // Final-rejection counter (survives resubmission) vs the configurable block limit.
   const priorRejections = submission?.kycRejectionCount ?? 0;
   const maxRejections = submission?.maxRejections;
-  const willBlockOnReject = maxRejections != null && priorRejections + 1 >= maxRejections;
+  const willBlockOnReject =
+    !submission?.emailBlocked && maxRejections != null && priorRejections + 1 >= maxRejections;
 
   // Approve / reject a single document (document-action endpoint; optimistic UI).
   // The document-level API takes only kyc_id + action — no reason — so no note check.

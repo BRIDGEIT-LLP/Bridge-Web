@@ -277,7 +277,11 @@ export default function VerificationStatusPage() {
   // From the first rejection until approval (counter-based, so it also shows after a
   // resubmission has moved the status back to Pending). `maxRejections` is configurable.
   const showAttemptsWarning =
-    (kyc?.kycRejectionCount ?? 0) >= 1 && accountStatus !== "APPROVED" && kyc?.attemptsRemaining != null;
+    (kyc?.kycRejectionCount ?? 0) >= 1 &&
+    accountStatus !== "APPROVED" &&
+    kyc?.attemptsRemaining != null &&
+    kyc.attemptsRemaining >= 1 &&
+    kyc.maxRejections != null;
   const isLastAttempt = kyc?.attemptsRemaining === 1;
   const attemptsMessage = isLastAttempt
     ? "This is your last attempt. If your KYC is rejected again, this account will be blocked."

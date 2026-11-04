@@ -68,6 +68,10 @@ const PLATFORM_FLAGS: { key: keyof PlatformFlags; label: string; description: st
 /** Number inputs: empty string → 0 rather than NaN. */
 const toNumber = (raw: string) => (raw === "" ? 0 : Number(raw));
 
+// Valid range for the KYC rejection limit; enforced before save (HTML min/max don't block it).
+const KYC_MAX_REJECTIONS_MIN = 1;
+const KYC_MAX_REJECTIONS_MAX = 10;
+
 /**
  * Field label for one OTP config row: the backend `lookup` with its underscores opened out
  * ("SENT_OTP_TTL" → "SENT OTP TTL"). The key is otherwise untouched so the screen reads as
@@ -347,7 +351,16 @@ export default function SystemManagementPage() {
       changes: (Object.keys(trialChanges) as (keyof TrialSettings)[]).map((key) =>
         changeLine(TRIAL_FIELD_LABELS[key], trial.value[key])
       ),
-      save: () => saveSection(trial, () => updateTrialSettings(trialChanges), "Trial settings"),
+      save: () => {
+        const limit = trial.value.kycMaxRejections;
+        if (!Number.isInteger(limit) || limit < KYC_MAX_REJECTIONS_MIN || limit > KYC_MAX_REJECTIONS_MAX) {
+          toast.error(
+            `${TRIAL_FIELD_LABELS.kycMaxRejections} must be a whole number from ${KYC_MAX_REJECTIONS_MIN} to ${KYC_MAX_REJECTIONS_MAX}.`
+          );
+          return Promise.resolve(false);
+        }
+        return saveSection(trial, () => updateTrialSettings(trialChanges), "Trial settings");
+      },
     },
     flags: {
       editor: flags as SectionEditor<unknown>,
