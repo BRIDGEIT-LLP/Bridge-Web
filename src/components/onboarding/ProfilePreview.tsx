@@ -15,6 +15,7 @@ import {
 } from "@/lib/startup-profile-options";
 import {
   INVESTMENT_STAGES,
+  INVESTOR_GEOGRAPHY_REGIONS,
   INVESTOR_TYPES,
   PRIMARY_INTENT_OPTIONS,
 } from "@/lib/investor-profile-options";
@@ -24,6 +25,7 @@ import {
   subSectorOptions,
   verticalOptions,
   BUSINESS_TYPES,
+  B2B_GEOGRAPHY_REGIONS,
   REVENUE_BANDS,
   EXPORT_READINESS,
   BUSINESS_INTENTS,
@@ -96,7 +98,7 @@ function ViewDocButton({ label, onClick }: { label: string; onClick: () => void 
 }
 
 /** Builds the role-specific section for the active role. */
-function roleSection(
+export function roleSection(
   values: CompleteProfileForm,
   role: string,
   onViewDoc: (s3Key: string, title: string) => void,
@@ -155,8 +157,7 @@ function roleSection(
         { label: "Investor Type", value: optLabel(INVESTOR_TYPES, inv.investorType) },
         { label: "Primary Intent", value: optLabel(PRIMARY_INTENT_OPTIONS, inv.primaryIntent) },
         { label: "Number of Investments", value: inv.numberOfInvestments },
-        { label: "Countries", value: optLabels(COUNTRIES, inv.geoCountries), full: true },
-        { label: "Continents", value: optLabels(CONTINENTS, inv.geoContinents), full: true },
+        { label: "Where you invest", value: optLabels(INVESTOR_GEOGRAPHY_REGIONS, inv.geoCountries), full: true },
         { label: "Investment Thesis", value: inv.investmentThesis, full: true },
         { label: "Portfolio Overview", value: inv.portfolioOverview, full: true },
         { label: "Address", value: inv.address, full: true },
@@ -175,14 +176,13 @@ function roleSection(
         { label: "Sector", value: optLabel(SECTOR_OPTIONS, b.sector) },
         { label: "Sub-Sector", value: optLabel(subSectorOptions(b.sector), b.subSector) },
         { label: "Industry Vertical", value: optLabel(verticalOptions(b.sector, b.subSector), b.industryVertical) },
-        { label: "Business Type", value: optLabel(BUSINESS_TYPES, b.businessType) },
+        // { label: "Business Type", value: optLabel(BUSINESS_TYPES, b.businessType) },
         { label: "Min Order Quantity", value: b.moq },
         { label: "Revenue Band", value: optLabel(REVENUE_BANDS, b.revenueBand) },
         { label: "Years in Operation", value: b.yearsInOperation },
         { label: "Export Readiness", value: optLabel(EXPORT_READINESS, b.exportReadiness) },
         { label: "Business Intent", value: optLabel(BUSINESS_INTENTS, b.businessIntent) },
-        { label: "Countries", value: optLabels(COUNTRIES, b.geoCountries), full: true },
-        { label: "Continents", value: optLabels(CONTINENTS, b.geoContinents), full: true },
+        { label: "Where you sell", value: optLabels(B2B_GEOGRAPHY_REGIONS, b.geoCountries), full: true },
         { label: "Products / Services", value: b.productsServices, full: true },
         { label: "Business Requirements", value: b.businessRequirements, full: true },
         { label: "Address", value: b.address, full: true },

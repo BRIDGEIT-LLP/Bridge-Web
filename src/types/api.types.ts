@@ -1,15 +1,15 @@
 /** Payload sent when registering a company (step 1). Field names/values match the backend schema. */
 export interface RegisterPayload {
-  companyName: string;
-  email: string;
-  // countryCode currently not sent — kept optional so it can be re-enabled later.
-  countryCode?: string;
-  phoneNumber: string;
+  company_name: string;
+  company_email: string;
+  // country_code currently not sent — kept optional so it can be re-enabled later.
+  country_code?: string;
+  mobile_number: string;
   password: string;
   role: "INVESTOR" | "B2B" | "STARTUP";
   termsAccepted: boolean;
-  gstNumber?: string;
-  cinNumber?: string;
+  gst_number?: string;
+  cin_number?: string;
 }
 
 export interface RegisterResponse {
@@ -381,6 +381,8 @@ export interface UserProfilePayload {
   short_bio?: string;
   country?: string;
   continent?: string;
+  state?: string;
+  city?: string;
   organization_name?: string;
   mobile_number?: string;
   /** Dialling code, e.g. "+91". Same column as company registration. */
@@ -402,6 +404,8 @@ export interface UserProfilePayload {
   pitch_deck_certificate?: string;
   business_description?: string;
   startup_intent?: string;
+  /** Optional free text next to the intent ("Anything specific?"), max 300 characters. */
+  intent_note?: string;
   /** Repeatable [{ name, url }] rows — a jsonb column, not two parallel arrays. */
   founders?: { name: string; url: string }[];
   // investor
@@ -432,6 +436,7 @@ export interface UserProfilePayload {
   products_ervice_Offered?: string;
   business_requirements?: string;
   b2b_intent?: string;
+  operational_capacity_description?: string;
   /** Registered office / residential address — investor + b2b. */
   address?: string;
 }
@@ -471,9 +476,52 @@ export interface SaveKycInfoPayload {
     back: KycDocFile;
   };
   PAN?: {
-    number: string;
+    /** Optional: the server falls back to the PAN saved on the Business step. */
+    number?: string;
     front: KycDocFile;
   };
+  /** GST registration certificate (business owner). The server attaches the company's verified GSTIN. */
+  GST_CERTIFICATE?: { front: KycDocFile };
+  /** Certificate of incorporation (business owner, founder). The server attaches the company's CIN. */
+  INCORPORATION_CERTIFICATE?: { front: KycDocFile };
+  /** Pitch deck PDF (founder). Has no number. */
+  PITCH_DECK?: { front: KycDocFile };
+}
+
+/** One stored file of a KYC document, as returned by `/file/kyc-requirements`. */
+export interface KycRequirementFile {
+  s3_key: string;
+  file_name: string | null;
+  file_size: number | null;
+  mimetype: string | null;
+}
+
+/** One document the role has to upload, with its number and anything already uploaded. */
+export interface KycRequirement {
+  document_type: "PAN" | "AADHAAR" | "GST_CERTIFICATE" | "INCORPORATION_CERTIFICATE" | "PITCH_DECK";
+  label: string;
+  required: boolean;
+  sides: ("front" | "back")[];
+  accepted_mime_types: string[];
+  max_size_mb: number;
+  number_label: string | null;
+  /** user = typed by the member (PAN comes from the Business step), company = verified GSTIN/CIN, none = no number */
+  number_source: "user" | "company" | "none";
+  number_editable: boolean;
+  number: string | null;
+  files: Partial<Record<"front" | "back", KycRequirementFile | null>>;
+  uploaded: boolean;
+  status: string | null;
+  rejection_reason: string | null;
+}
+
+/** Response data from `/file/kyc-requirements`. */
+export interface KycRequirementsData {
+  role: string;
+  documents: KycRequirement[];
+  kyc_status: string | null;
+  rejection_reason: string | null;
+  is_kyc_uploaded: boolean;
 }
 
 /** Response from `/kyc/save-kyc-info`. */
@@ -500,7 +548,7 @@ export interface KycDocEntry {
  * Stored KYC documents returned by `/file/get-kyc-docs`. The backend sends an array of
  * single-key objects (one per document type), e.g. `[{ AADHAAR: … }, { PAN: … }]`.
  */
-export type KycDocDetails = Array<Partial<Record<"AADHAAR" | "PAN", KycDocEntry>>>;
+export type KycDocDetails = Array<Partial<Record<"AADHAAR" | "PAN" | "GST_CERTIFICATE" | "INCORPORATION_CERTIFICATE" | "PITCH_DECK", KycDocEntry>>>;
 
 export interface GetKycDocsResponse {
   docDetails: KycDocDetails;

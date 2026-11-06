@@ -13,7 +13,6 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
-import { COUNTRIES, CONTINENTS, continentForCountry } from "@/lib/countries";
 import { URL_REGEX, LINKEDIN_URL_PATTERN } from "@/lib/startup-profile-options";
 import {
   SECTOR_OPTIONS,
@@ -24,6 +23,7 @@ import {
   REVENUE_BANDS,
   EXPORT_READINESS,
   BUSINESS_INTENTS,
+  B2B_GEOGRAPHY_REGIONS,
   PRODUCTS_MAX_CHARS,
   REQUIREMENTS_MAX_CHARS,
 } from "@/lib/b2b-profile-options";
@@ -44,6 +44,8 @@ export interface B2BValues {
   productsServices: string;
   businessRequirements: string;
   businessIntent: string;
+  /** New UI "Operational capacity (optional)"; saved as operational_capacity_description. */
+  operationalCapacity?: string;
   linkedinUrl: string;
   websiteUrl: string;
   address: string;
@@ -64,6 +66,7 @@ export const defaultB2BValues: B2BValues = {
   productsServices: "",
   businessRequirements: "",
   businessIntent: "",
+  operationalCapacity: "",
   linkedinUrl: "",
   websiteUrl: "",
   address: "",
@@ -74,21 +77,272 @@ interface B2BProfileFieldsProps {
   register: UseFormRegister<CompleteProfileForm>;
   setValue: UseFormSetValue<CompleteProfileForm>;
   errors: FieldErrors<CompleteProfileForm>;
+  /** Registration only: the new UI asks for intent on its own "Intent" screen. Dashboard editors leave this false. */
+  hideIntent?: boolean;
+  /**
+   * Registration only: lay the form out like the new UI (the prototype's fields first, every field
+   * from the previous UI kept in an optional collapsible block). Dashboard editors leave this false.
+   */
+  newUi?: boolean;
 }
 
-export function B2BProfileFields({ control, register, setValue, errors }: B2BProfileFieldsProps) {
+/*
+ * NOT IN NEW UI (kept from the previous UI so nothing is lost): B2B sector, business type, industry
+ * vertical, geography by country/continent (new UI has broad regions), separate business name, address.
+ */
+export function B2BProfileFields({ control, register, setValue, errors, hideIntent = false, newUi = false }: B2BProfileFieldsProps) {
+  const [legacyOpen, setLegacyOpen] = React.useState(false);
   const e = errors.b2b;
 
   const sector = useWatch({ control, name: "b2b.sector" });
   const subSector = useWatch({ control, name: "b2b.subSector" });
   const businessType = useWatch({ control, name: "b2b.businessType" });
-  const geoContinents = useWatch({ control, name: "b2b.geoContinents" });
   const products = useWatch({ control, name: "b2b.productsServices" });
   const requirements = useWatch({ control, name: "b2b.businessRequirements" });
 
   const moqRequired = MOQ_REQUIRED_TYPES.includes(businessType);
   const productChars = (products ?? "").length;
   const requirementChars = (requirements ?? "").length;
+
+  if (newUi) {
+    // Legacy fields are always mounted (so their values are kept); the block opens itself on an error.
+    const legacyHasError = !!(e?.industryVertical || e?.address);
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Controller
+            control={control}
+            name="b2b.sector"
+            rules={{ required: "Select a sector." }}
+            render={({ field }) => (
+              <Select
+                id="sector"
+                label="Sector"
+                required
+                placeholder="Select sector"
+                options={SECTOR_OPTIONS}
+                value={field.value}
+                onChange={(v) => {
+                  field.onChange(v);
+                  // Reset dependent selections when the parent changes.
+                  setValue("b2b.subSector", "", { shouldValidate: false });
+                  setValue("b2b.industryVertical", "", { shouldValidate: false });
+                }}
+                error={e?.sector?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="b2b.subSector"
+            rules={{ required: "Select a sub-sector." }}
+            render={({ field }) => (
+              <Select
+                id="subSector"
+                label="Sub-sector"
+                required
+                placeholder={sector ? "Select sub-sector" : "Select a sector first"}
+                disabled={!sector}
+                options={subSectorOptions(sector)}
+                value={field.value}
+                onChange={(v) => {
+                  field.onChange(v);
+                  setValue("b2b.industryVertical", "", { shouldValidate: false });
+                }}
+                error={e?.subSector?.message}
+              />
+            )}
+          />
+        </div>
+        <Controller
+          control={control}
+          name="b2b.revenueBand"
+          rules={{ required: "Select your revenue band." }}
+          render={({ field }) => (
+            <Select
+              id="revenueBand"
+              label="Annual revenue"
+              required
+              placeholder="Select a band"
+              options={REVENUE_BANDS}
+              value={field.value}
+              onChange={field.onChange}
+              error={e?.revenueBand?.message}
+            />
+          )}
+        />
+        <Input
+          variant="ux"
+          id="yearsInOperation"
+          type="number"
+          min={0}
+          label="Years in operation"
+          required
+          placeholder="12"
+          error={e?.yearsInOperation?.message}
+          {...register("b2b.yearsInOperation", {
+            required: "Add years in operation",
+            min: { value: 0, message: "Enter a valid number of years." },
+          })}
+        />
+        <Input
+          variant="ux"
+          id="moq"
+          type="number"
+          min={0}
+          label="Minimum order quantity"
+          required
+          placeholder="500"
+          error={e?.moq?.message}
+          {...register("b2b.moq", {
+            validate: (v) => (!!v && Number(v) > 0) || "Add minimum order quantity",
+          })}
+        />
+        <Controller
+          control={control}
+          name="b2b.exportReadiness"
+          rules={{ required: "Select your export readiness." }}
+          render={({ field }) => (
+            <Select
+              id="exportReadiness"
+              label="Export ready"
+              required
+              placeholder="Select"
+              options={EXPORT_READINESS}
+              value={field.value}
+              onChange={field.onChange}
+              error={e?.exportReadiness?.message}
+            />
+          )}
+        />
+        <div className="flex flex-col gap-1">
+          <Textarea
+            id="productsServices"
+            label="Products or services"
+            required
+            rows={3}
+            maxLength={PRODUCTS_MAX_CHARS}
+            placeholder="What you make or offer"
+            error={e?.productsServices?.message}
+            {...register("b2b.productsServices", {
+              required: "Describe the products or services you offer.",
+              maxLength: { value: PRODUCTS_MAX_CHARS, message: `Keep it under ${PRODUCTS_MAX_CHARS} characters.` },
+            })}
+          />
+          <span className={`px-1 text-xs font-medium ${productChars > PRODUCTS_MAX_CHARS ? "text-error" : "text-on-surface-variant"}`}>
+            {productChars} / {PRODUCTS_MAX_CHARS} characters
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Textarea
+            id="businessRequirements"
+            label="What you need"
+            required
+            rows={3}
+            maxLength={REQUIREMENTS_MAX_CHARS}
+            placeholder="Partners, buyers or suppliers you are looking for"
+            error={e?.businessRequirements?.message}
+            {...register("b2b.businessRequirements", {
+              required: "Describe your business requirements.",
+              maxLength: { value: REQUIREMENTS_MAX_CHARS, message: `Keep it under ${REQUIREMENTS_MAX_CHARS} characters.` },
+            })}
+          />
+          <span className={`px-1 text-xs font-medium ${requirementChars > REQUIREMENTS_MAX_CHARS ? "text-error" : "text-on-surface-variant"}`}>
+            {requirementChars} / {REQUIREMENTS_MAX_CHARS} characters
+          </span>
+        </div>
+        <Controller
+          control={control}
+          name="b2b.geoCountries"
+          rules={{ validate: (v) => v.length > 0 || "Select at least one region." }}
+          render={({ field }) => (
+            <div className="flex flex-col gap-2" id="geoCountries" tabIndex={-1}>
+              <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
+                Where you sell<span className="align-middle text-base leading-none text-error"> *</span>
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {B2B_GEOGRAPHY_REGIONS.map((o) => {
+                  const on = field.value.includes(o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => field.onChange(on ? field.value.filter((v) => v !== o.value) : [...field.value, o.value])}
+                      className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                        on
+                          ? "border-primary bg-primary-container font-semibold text-primary"
+                          : "border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:border-primary/60"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {e?.geoCountries?.message && (
+                <span className="px-1 text-xs font-medium text-error">{e.geoCountries.message}</span>
+              )}
+            </div>
+          )}
+        />
+        <Textarea
+          id="operationalCapacity"
+          label="Operational capacity (optional)"
+          rows={3}
+          placeholder="1,200 tonnes a month"
+          {...register("b2b.operationalCapacity")}
+        />
+
+        {/* NOT IN NEW UI: kept from the previous UI. Everything in here is optional. */}
+        <details
+          open={legacyOpen || legacyHasError}
+          onToggle={(ev) => setLegacyOpen((ev.currentTarget as HTMLDetailsElement).open)}
+          className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-4"
+        >
+          <summary className="cursor-pointer text-sm font-semibold text-on-surface">
+            More business details (optional, from the previous form)
+          </summary>
+          <div className="mt-4 flex flex-col gap-6">
+            <Input
+              id="businessName"
+              label="Business Name"
+              readOnly
+              adornment={<Icon name="lock" size={18} />}
+              className="cursor-not-allowed text-on-surface-variant"
+              {...register("b2b.businessName")}
+            />
+            <Controller
+              control={control}
+              name="b2b.industryVertical"
+              render={({ field }) => (
+                <Select
+                  id="industryVertical"
+                  label="Industry Vertical"
+                  optional
+                  placeholder={subSector ? "Select vertical" : "Select a sub-sector first"}
+                  disabled={!subSector}
+                  options={verticalOptions(sector, subSector)}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={e?.industryVertical?.message}
+                />
+              )}
+            />
+            <Textarea
+              id="address"
+              label="Registered Office / Residential Address"
+              optional
+              rows={3}
+              placeholder="Address as per your registration / government ID"
+              error={e?.address?.message}
+              {...register("b2b.address")}
+            />
+          </div>
+        </details>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -173,15 +427,14 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
 
       {/* Business Type + MOQ (MOQ required only for product businesses) */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Business Type is hidden for now and is not a required attribute.
         <Controller
           control={control}
           name="b2b.businessType"
-          rules={{ required: "Select your business type." }}
           render={({ field }) => (
             <Select
               id="businessType"
               label="Business Type"
-              required
               placeholder="Select type"
               options={BUSINESS_TYPES}
               value={field.value}
@@ -190,6 +443,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             />
           )}
         />
+        */}
         <Input
           id="moq"
           type="number"
@@ -239,64 +493,44 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
         />
       </div>
 
-      {/* Geographies: countries + continents (at least one) */}
-      <div className="flex flex-col gap-3">
-        <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Geographies<span className="align-middle text-base leading-none text-error"> *</span>
-        </span>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Controller
-            control={control}
-            name="b2b.geoCountries"
-            rules={{
-              validate: (v, all) =>
-                v.length + all.b2b.geoContinents.length > 0 ||
-                "Select at least one country or continent.",
-            }}
-            render={({ field }) => (
-              <Select
-                multiple
-                searchable
-                id="geoCountries"
-                placeholder="Select countries"
-                options={COUNTRIES}
-                value={field.value}
-                onChange={(v) => {
-                  const prev = field.value ?? [];
-                  field.onChange(v);
-                  // Auto-derive continents from selected countries (mirrors the
-                  // investor Geographic Preference behaviour).
-                  const derivedBefore = new Set(
-                    prev.map((c) => continentForCountry(c)).filter(Boolean),
-                  );
-                  const derivedAfter = new Set(
-                    v.map((c) => continentForCountry(c)).filter(Boolean),
-                  );
-                  const dropped = [...derivedBefore].filter((cont) => !derivedAfter.has(cont));
-                  const next = (geoContinents ?? []).filter((cont) => !dropped.includes(cont));
-                  const merged = Array.from(new Set([...next, ...derivedAfter]));
-                  setValue("b2b.geoContinents", merged, { shouldValidate: true });
-                }}
-                error={e?.geoCountries?.message}
-              />
+      {/* Where you sell: region chips (at least one). Stored in b2b_geography_country. */}
+      <Controller
+        control={control}
+        name="b2b.geoCountries"
+        rules={{ validate: (v) => v.length > 0 || "Select at least one region." }}
+        render={({ field }) => (
+          <div className="flex flex-col gap-2" id="geoCountries" tabIndex={-1}>
+            <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
+              Where you sell<span className="align-middle text-base leading-none text-error"> *</span>
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {B2B_GEOGRAPHY_REGIONS.map((o) => {
+                const on = field.value.includes(o.value);
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      field.onChange(on ? field.value.filter((v) => v !== o.value) : [...field.value, o.value])
+                    }
+                    className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                      on
+                        ? "border-primary bg-primary-container font-semibold text-primary"
+                        : "border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:border-primary/60"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+            {e?.geoCountries?.message && (
+              <span className="px-1 text-xs font-medium text-error">{e.geoCountries.message}</span>
             )}
-          />
-          <Controller
-            control={control}
-            name="b2b.geoContinents"
-            render={({ field }) => (
-              <Select
-                multiple
-                id="geoContinents"
-                placeholder="Select continents"
-                options={CONTINENTS}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </div>
-      </div>
+          </div>
+        )}
+      />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Controller
@@ -316,23 +550,25 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             />
           )}
         />
-        <Controller
-          control={control}
-          name="b2b.businessIntent"
-          rules={{ required: "Select your business intent." }}
-          render={({ field }) => (
-            <Select
-              id="businessIntent"
-              label="Business Intent"
-              required
-              placeholder="Select intent"
-              options={BUSINESS_INTENTS}
-              value={field.value}
-              onChange={field.onChange}
-              error={e?.businessIntent?.message}
-            />
-          )}
-        />
+        {!hideIntent && (
+          <Controller
+            control={control}
+            name="b2b.businessIntent"
+            rules={{ required: "Select your business intent." }}
+            render={({ field }) => (
+              <Select
+                id="businessIntent"
+                label="Business Intent"
+                required
+                placeholder="Select intent"
+                options={BUSINESS_INTENTS}
+                value={field.value}
+                onChange={field.onChange}
+                error={e?.businessIntent?.message}
+              />
+            )}
+          />
+        )}
       </div>
 
       {/* Products / Services Offered (structured text) */}

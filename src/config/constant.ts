@@ -79,10 +79,13 @@ export const API_ENDPOINTS = {
   FILE_PREVIEW: `${FILE}/file-preview`,
   // Create the user profile (complete-profile step). Requires a valid JWT.
   BUILD_PROFILE: `${USERS}/build-profile`,
+  BUSINESS_CHECK: `${USERS}/business-check`,
   // TODO: replace with the real save-kyc-info path from the curl.
   SAVE_KYC_INFO: `${FILE}/save-kyc-info`,
   // Fetch the submitted KYC docs + submission/expiry timestamps (verification-status step).
   GET_KYC_DOCS: `${FILE}/get-kyc-docs`,
+  // Documents + numbers the registration Documents step needs for the signed-in role (GET).
+  KYC_REQUIREMENTS: `${FILE}/kyc-requirements`,
 
   // ----- Session Management -----
   // Check whether the user is at their active-session limit (called after MFA

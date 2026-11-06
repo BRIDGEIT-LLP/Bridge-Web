@@ -206,3 +206,15 @@ export const BUSINESS_INTENTS: Option[] = [
 /** Max characters for the structured free-text fields. */
 export const PRODUCTS_MAX_CHARS = 1000;
 export const REQUIREMENTS_MAX_CHARS = 1000;
+
+/** "Where you sell" regions. Saved in the b2b_geography_country column (b2b_geography_continent is left empty). */
+export const B2B_GEOGRAPHY_REGIONS: Option[] = [
+  { value: "north_india", label: "North India" },
+  { value: "south_india", label: "South India" },
+  { value: "west_india", label: "West India" },
+  { value: "east_india", label: "East India" },
+  { value: "middle_east", label: "Middle East" },
+  { value: "africa", label: "Africa" },
+  { value: "europe", label: "Europe" },
+  { value: "south_east_asia", label: "South-east Asia" },
+];
