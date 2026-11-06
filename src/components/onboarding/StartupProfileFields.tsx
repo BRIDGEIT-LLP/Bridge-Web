@@ -188,6 +188,14 @@ export interface StartupValues {
   websiteUrl: string;
   linkedinUrl: string;
   intent: string;
+  /**
+   * NEW UI ONLY — no backend column yet, so these are collected and kept in onboarding data
+   * but NOT sent to build-profile.
+   */
+  raisingCr?: string;
+  yearOfIncorporation?: string;
+  fundsRaised?: string;
+  coFounders?: string;
   /** S3 keys returned by the scan API once each document is uploaded. */
   incorporationCert: string;
   pitchDeck: string;
@@ -200,6 +208,9 @@ export interface CompleteProfileForm {
   bio: string;
   country: string;
   continent: string;
+  /** NEW UI ONLY — no backend column yet: kept in onboarding data, not sent to build-profile. */
+  state?: string;
+  city?: string;
   /** Primary Sector — base field shown for every role (multi-select). */
   primarySectors: string[];
   /** Account fields captured at registration — company/role/email stay locked. */
@@ -235,6 +246,10 @@ export const defaultStartupValues: StartupValues = {
   intent: "",
   incorporationCert: "",
   pitchDeck: "",
+  raisingCr: "",
+  yearOfIncorporation: "",
+  fundsRaised: "",
+  coFounders: "",
 };
 
 /** Word count for the business description (whitespace-delimited). */
@@ -270,11 +285,25 @@ interface StartupProfileFieldsProps {
   control: Control<CompleteProfileForm>;
   register: UseFormRegister<CompleteProfileForm>;
   errors: FieldErrors<CompleteProfileForm>;
+  /** Registration only: the new UI asks for intent on its own "Intent" screen. Dashboard editors leave this false. */
+  hideIntent?: boolean;
+  /**
+   * Registration only: lay the form out like the new UI (the prototype's fields first, every
+   * field from the previous UI kept in a collapsible block). Dashboard editors leave this false.
+   */
+  newUi?: boolean;
 }
 
 const SECTION_TITLE = "text-base font-semibold text-on-surface";
 
-export function StartupProfileFields({ control, register, errors }: StartupProfileFieldsProps) {
+/*
+ * NOT IN NEW UI (kept from the previous UI so nothing is lost): industry sector, funding currency,
+ * funding min/max (new UI has a single "Raising (₹ Cr)"), business description, and the Founders &
+ * LinkedIn rows (new UI has a free-text "Co-founders"). The incorporation certificate and pitch
+ * deck uploads are not here in the new UI: they are KYC documents, collected on the Documents screen.
+ */
+export function StartupProfileFields({ control, register, errors, hideIntent = false, newUi = false }: StartupProfileFieldsProps) {
+  const [legacyOpen, setLegacyOpen] = React.useState(false);
   const e = errors.startup;
   const { fields, append, remove } = useFieldArray({ control, name: "startup.founders" });
   const businessDescription = useWatch({ control, name: "startup.businessDescription" });
@@ -286,10 +315,10 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       `Keep the description under ${BUSINESS_DESCRIPTION_MAX_WORDS} words.`,
   });
 
-  return (
-    <div className="flex flex-col gap-6">
-      <p className={SECTION_TITLE}>Startup Details</p>
-
+  // Industry Sector is hidden: the 'About you' Sectors chips already collect it (primary_sector).
+  /*
+  const industryField = (
+    <>
       <Controller
         control={control}
         name="startup.industrySectors"
@@ -308,16 +337,19 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           />
         )}
       />
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+    </>
+  );
+  */
+  const stageField = (
+    <>
         <Controller
           control={control}
           name="startup.fundingStage"
           render={({ field }) => (
             <Select
               id="fundingStage"
-              label="Funding Stage"
-              optional
+              label={newUi ? "Funding stage" : "Funding Stage"}
+              optional={!newUi}
               placeholder="Select stage"
               options={FUNDING_STAGES}
               value={field.value}
@@ -325,14 +357,18 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             />
           )}
         />
+    </>
+  );
+  const teamField = (
+    <>
         <Controller
           control={control}
           name="startup.teamSize"
           render={({ field }) => (
             <Select
               id="teamSize"
-              label="Team Size"
-              optional
+              label={newUi ? "Team size" : "Team Size"}
+              optional={!newUi}
               placeholder="Select range"
               options={TEAM_SIZE_RANGES}
               value={field.value}
@@ -340,12 +376,14 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             />
           )}
         />
-      </div>
-
+    </>
+  );
+  const askField = (
+    <>
       {/* Funding ask: currency + min–max range */}
       <div className="flex flex-col gap-2">
         <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
-          Funding Ask Amount<span className="align-middle text-base leading-none text-error"> *</span>
+          Funding Ask Amount{newUi ? <span className="font-medium normal-case text-primary"> (Optional)</span> : <span className="align-middle text-base leading-none text-error"> *</span>}
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
           <Controller
@@ -360,7 +398,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             min={0}
             placeholder="Min"
             error={e?.fundingMin?.message}
-            {...register("startup.fundingMin", { required: "Required." })}
+            {...register("startup.fundingMin", { required: newUi ? false : "Required." })}
           />
           <Input
             type="number"
@@ -368,27 +406,33 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             placeholder="Max"
             error={e?.fundingMax?.message}
             {...register("startup.fundingMax", {
-              required: "Required.",
+              required: newUi ? false : "Required.",
               validate: (v, all) =>
-                Number(v) >= Number(all.startup.fundingMin) || "Max must be ≥ min.",
+                !v || !all.startup.fundingMin || Number(v) >= Number(all.startup.fundingMin) || "Max must be ≥ min.",
             })}
           />
         </div>
       </div>
-
+    </>
+  );
+  const useOfFundsField = (
+    <>
       <Textarea
         id="useOfFunds"
-        label="Use of Funds"
+        label={newUi ? "Use of funds" : "Use of Funds"}
         required
-        placeholder="How will the funds be used? (e.g. 40% product, 30% hiring, 30% marketing)"
+        placeholder={newUi ? "Where the money goes, in rough percentages" : "How will the funds be used? (e.g. 40% product, 30% hiring, 30% marketing)"}
         error={e?.useOfFunds?.message}
         {...register("startup.useOfFunds", { required: "Describe how the funds will be used." })}
       />
-
+    </>
+  );
+  const foundersField = (
+    <>
       {/* Founders + LinkedIn (repeatable) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
-          Founders &amp; LinkedIn<span className="align-middle text-base leading-none text-error"> *</span>
+          Founders &amp; LinkedIn{newUi ? <span className="font-medium normal-case text-primary"> (Optional)</span> : <span className="align-middle text-base leading-none text-error"> *</span>}
         </span>
         {fields.map((row, i) => (
           <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
@@ -396,12 +440,12 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <Controller
               control={control}
               name={`startup.founders.${i}.name`}
-              rules={{ required: "Required." }}
+              rules={{ required: newUi ? false : "Required." }}
               render={({ field, fieldState }) => (
                 <Input
                   id={`founder-name-${i}`}
                   label="Founder name"
-                  required
+                  required={!newUi}
                   placeholder="Founder name"
                   error={fieldState.error?.message}
                   name={field.name}
@@ -416,14 +460,14 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               control={control}
               name={`startup.founders.${i}.url`}
               rules={{
-                required: "Required.",
-                pattern: { value: new RegExp(LINKEDIN_URL_PATTERN, "i"), message: "Enter a valid LinkedIn URL." },
+                required: newUi ? false : "Required.",
+                validate: (v) => !v || new RegExp(LINKEDIN_URL_PATTERN, "i").test(v) || "Enter a valid LinkedIn URL.",
               }}
               render={({ field, fieldState }) => (
                 <Input
                   id={`founder-url-${i}`}
                   label="LinkedIn URL"
-                  required
+                  required={!newUi}
                   type="url"
                   placeholder="https://linkedin.com/in/…"
                   error={fieldState.error?.message}
@@ -454,7 +498,10 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           <Icon name="add" size={18} /> Add founder
         </button>
       </div>
-
+    </>
+  );
+  const descField = (
+    <>
       {/* Business description with word counter */}
       <div className="flex flex-col gap-1">
         <Textarea
@@ -475,7 +522,10 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           {descWords} / {BUSINESS_DESCRIPTION_MAX_WORDS} words
         </span>
       </div>
-
+    </>
+  );
+  const linksField = (
+    <>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Input
           type="url"
@@ -499,24 +549,33 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           })}
         />
       </div>
-
-      <Controller
-        control={control}
-        name="startup.intent"
-        rules={{ required: "Select your intent." }}
-        render={({ field }) => (
-          <Select
-            id="intent"
-            label="Intent"
-            required
-            placeholder="Select your intent"
-            options={INTENT_OPTIONS}
-            value={field.value}
-            onChange={field.onChange}
-            error={e?.intent?.message}
-          />
-        )}
-      />
+    </>
+  );
+  const intentField = (
+    <>
+      {!hideIntent && (
+        <Controller
+          control={control}
+          name="startup.intent"
+          rules={{ required: "Select your intent." }}
+          render={({ field }) => (
+            <Select
+              id="intent"
+              label="Intent"
+              required
+              placeholder="Select your intent"
+              options={INTENT_OPTIONS}
+              value={field.value}
+              onChange={field.onChange}
+              error={e?.intent?.message}
+            />
+          )}
+        />
+      )}
+    </>
+  );
+  const docsField = (
+      <>
       {/* document upload uncomment the this block  */}
       
       {/* Mandatory documents */}
@@ -525,12 +584,12 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         <Controller
           control={control}
           name="startup.incorporationCert"
-          rules={{ validate: (v) => !!v || "Upload your Incorporation Certificate." }}
+          rules={{ validate: (v) => newUi || !!v || "Upload your Incorporation Certificate." }}
           render={({ field }) => (
             <FileUploadField
               id="incorporationCert"
               label="Incorporation Certificate"
-              required
+              required={!newUi}
               hint={`PDF only (max ${DOC_MAX_MB.INCORPORATION_CERTIFICATE}MB)`}
               accept={PITCH_DECK_ACCEPT}
               maxSizeMB={DOC_MAX_MB.INCORPORATION_CERTIFICATE}
@@ -546,13 +605,13 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           control={control}
           name="startup.pitchDeck"
           rules={{
-            validate: (v) => !!v || `Upload your Pitch Deck (PDF, max ${DOC_MAX_MB.PITCH_DECK} MB).`,
+            validate: (v) => newUi || !!v || `Upload your Pitch Deck (PDF, max ${DOC_MAX_MB.PITCH_DECK} MB).`,
           }}
           render={({ field }) => (
             <FileUploadField
               id="pitchDeck"
               label={`Pitch Deck (PDF, max ${DOC_MAX_MB.PITCH_DECK} MB)`}
-              required
+              required={!newUi}
               hint={`PDF only (max ${DOC_MAX_MB.PITCH_DECK}MB)`}
               accept={PITCH_DECK_ACCEPT}
               maxSizeMB={DOC_MAX_MB.PITCH_DECK}
@@ -565,6 +624,108 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           )}
         />
       </div>
+      </>
+  );
+
+  if (newUi) {
+    // Legacy fields are always mounted (so validation covers them); the block just opens itself
+    // when one of them has an error.
+    const legacyHasError = !!(
+      e?.industrySectors || e?.fundingMin || e?.fundingMax || e?.founders ||
+      e?.businessDescription
+    );
+    return (
+      <div className="flex flex-col gap-5">
+        {stageField}
+        <Input
+          variant="ux"
+          id="raisingCr"
+          type="number"
+          min={0}
+          step="any"
+          label="Raising (₹ Cr)"
+          required
+          placeholder="8"
+          error={e?.raisingCr?.message}
+          {...register("startup.raisingCr", {
+            // The optional funding min/max in the collapsible block can stand in for this.
+            validate: (v, all) => !!v || !!all.startup.fundingMax || "Add raising amount",
+          })}
+        />
+        {useOfFundsField}
+        {teamField}
+        <Input
+          variant="ux"
+          id="yearOfIncorporation"
+          inputMode="numeric"
+          maxLength={4}
+          label="Year of incorporation"
+          placeholder="YYYY"
+          error={e?.yearOfIncorporation?.message}
+          {...register("startup.yearOfIncorporation", {
+            validate: (v) => !v || /^(19|20)\d{2}$/.test(v) || "Enter a 4-digit year.",
+          })}
+        />
+        <Input
+          variant="ux"
+          id="fundsRaised"
+          label="Funding raised so far"
+          placeholder="Angel round, ₹1.5 Cr, 2025"
+          {...register("startup.fundsRaised")}
+        />
+        <Input
+          variant="ux"
+          id="coFounders"
+          label="Co-founders"
+          optional
+          placeholder="Arjun Mehta, CTO"
+          {...register("startup.coFounders")}
+        />
+
+        {/* NOT IN NEW UI: everything below comes from the previous UI and is kept so no data is lost. */}
+        <details
+          open={legacyOpen || legacyHasError}
+          onToggle={(ev) => setLegacyOpen((ev.currentTarget as HTMLDetailsElement).open)}
+          className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-4"
+        >
+          <summary className="cursor-pointer text-sm font-semibold text-on-surface">
+            More startup details (from the previous form, not in the new design)
+          </summary>
+          <div className="mt-4 flex flex-col gap-6">
+            {/* {industryField} */}
+            {askField}
+            {foundersField}
+            {descField}
+            {/* Incorporation certificate and pitch deck are KYC documents now: uploaded on the Documents step. */}
+          </div>
+        </details>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <p className={SECTION_TITLE}>Startup Details</p>
+
+      {/* {industryField} */}
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {stageField}
+        {teamField}
+      </div>
+
+      {askField}
+
+      {useOfFundsField}
+
+      {foundersField}
+
+      {descField}
+
+      {linksField}
+
+      {!hideIntent && intentField}
+      {docsField}
     </div>
   );
 }

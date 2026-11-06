@@ -1,15 +1,15 @@
 /** Payload sent when registering a company (step 1). Field names/values match the backend schema. */
 export interface RegisterPayload {
-  companyName: string;
-  email: string;
-  // countryCode currently not sent — kept optional so it can be re-enabled later.
-  countryCode?: string;
-  phoneNumber: string;
+  company_name: string;
+  company_email: string;
+  // country_code currently not sent — kept optional so it can be re-enabled later.
+  country_code?: string;
+  mobile_number: string;
   password: string;
   role: "INVESTOR" | "B2B" | "STARTUP";
   termsAccepted: boolean;
-  gstNumber?: string;
-  cinNumber?: string;
+  gst_number?: string;
+  cin_number?: string;
 }
 
 export interface RegisterResponse {
@@ -70,6 +70,24 @@ export interface LoginPayload {
 }
 
 /**
+ * Reminder the backend attaches to the login / MFA-verify response on every sign-in from a
+ * company's first KYC rejection until KYC is approved. Keyed on the rejection counter, not
+ * on `kycStatus` (a resubmission moves the status back to "Pending" but the user is still
+ * that many strikes closer to being blocked).
+ */
+export interface KycRejectionWarning {
+  kycStatus?: string | null;
+  kycRejectionCount: number;
+  /** Configurable on the backend (`kyc_max_rejections`); never hard-code it. */
+  maxRejections: number;
+  attemptsRemaining: number;
+  /** Admin's reason, only while the status is "Rejected". */
+  kycRejectionReason?: string | null;
+  /** Ready-to-show sentence built by the backend. */
+  message?: string;
+}
+
+/**
  * Response from the login endpoint. The pre-MFA token is set as an httpOnly cookie
  * directly on this response — nothing token-shaped is in the body. `redirectTo` is
  * the route the backend wants the client to land on (e.g. the next pending
@@ -88,6 +106,8 @@ export interface LoginResponse {
     /** Already-masked contact info for display on the verification-channel screen. */
     maskedMobile?: string;
     maskedEmail?: string;
+    /** Present only while the company has >= 1 KYC rejection and is not yet approved. */
+    kycRejection?: KycRejectionWarning;
   };
 }
 
@@ -248,6 +268,8 @@ export interface VerifyMfaOtpResponse {
     countryCode?: string;
     /** The registered company name — locked "Company Name" field on complete-profile. */
     companyName?: string;
+    /** Present only while the company has >= 1 KYC rejection and is not yet approved. */
+    kycRejection?: KycRejectionWarning;
     /** Company channel verification flags — used when landing on verify-account after login. */
     isEmailVerified?: boolean;
     isPhoneVerified?: boolean;
@@ -359,6 +381,8 @@ export interface UserProfilePayload {
   short_bio?: string;
   country?: string;
   continent?: string;
+  state?: string;
+  city?: string;
   organization_name?: string;
   mobile_number?: string;
   /** Dialling code, e.g. "+91". Same column as company registration. */
@@ -380,6 +404,8 @@ export interface UserProfilePayload {
   pitch_deck_certificate?: string;
   business_description?: string;
   startup_intent?: string;
+  /** Optional free text next to the intent ("Anything specific?"), max 300 characters. */
+  intent_note?: string;
   /** Repeatable [{ name, url }] rows — a jsonb column, not two parallel arrays. */
   founders?: { name: string; url: string }[];
   // investor
@@ -410,6 +436,7 @@ export interface UserProfilePayload {
   products_ervice_Offered?: string;
   business_requirements?: string;
   b2b_intent?: string;
+  operational_capacity_description?: string;
   /** Registered office / residential address — investor + b2b. */
   address?: string;
 }
@@ -449,9 +476,52 @@ export interface SaveKycInfoPayload {
     back: KycDocFile;
   };
   PAN?: {
-    number: string;
+    /** Optional: the server falls back to the PAN saved on the Business step. */
+    number?: string;
     front: KycDocFile;
   };
+  /** GST registration certificate (business owner). The server attaches the company's verified GSTIN. */
+  GST_CERTIFICATE?: { front: KycDocFile };
+  /** Certificate of incorporation (business owner, founder). The server attaches the company's CIN. */
+  INCORPORATION_CERTIFICATE?: { front: KycDocFile };
+  /** Pitch deck PDF (founder). Has no number. */
+  PITCH_DECK?: { front: KycDocFile };
+}
+
+/** One stored file of a KYC document, as returned by `/file/kyc-requirements`. */
+export interface KycRequirementFile {
+  s3_key: string;
+  file_name: string | null;
+  file_size: number | null;
+  mimetype: string | null;
+}
+
+/** One document the role has to upload, with its number and anything already uploaded. */
+export interface KycRequirement {
+  document_type: "PAN" | "AADHAAR" | "GST_CERTIFICATE" | "INCORPORATION_CERTIFICATE" | "PITCH_DECK";
+  label: string;
+  required: boolean;
+  sides: ("front" | "back")[];
+  accepted_mime_types: string[];
+  max_size_mb: number;
+  number_label: string | null;
+  /** user = typed by the member (PAN comes from the Business step), company = verified GSTIN/CIN, none = no number */
+  number_source: "user" | "company" | "none";
+  number_editable: boolean;
+  number: string | null;
+  files: Partial<Record<"front" | "back", KycRequirementFile | null>>;
+  uploaded: boolean;
+  status: string | null;
+  rejection_reason: string | null;
+}
+
+/** Response data from `/file/kyc-requirements`. */
+export interface KycRequirementsData {
+  role: string;
+  documents: KycRequirement[];
+  kyc_status: string | null;
+  rejection_reason: string | null;
+  is_kyc_uploaded: boolean;
 }
 
 /** Response from `/kyc/save-kyc-info`. */
@@ -478,7 +548,7 @@ export interface KycDocEntry {
  * Stored KYC documents returned by `/file/get-kyc-docs`. The backend sends an array of
  * single-key objects (one per document type), e.g. `[{ AADHAAR: … }, { PAN: … }]`.
  */
-export type KycDocDetails = Array<Partial<Record<"AADHAAR" | "PAN", KycDocEntry>>>;
+export type KycDocDetails = Array<Partial<Record<"AADHAAR" | "PAN" | "GST_CERTIFICATE" | "INCORPORATION_CERTIFICATE" | "PITCH_DECK", KycDocEntry>>>;
 
 export interface GetKycDocsResponse {
   docDetails: KycDocDetails;
@@ -489,6 +559,11 @@ export interface GetKycDocsResponse {
   kycStatus?: string | null;
   /** The admin's reason for rejecting. Only set when `kycStatus` is "Rejected". */
   rejectionReason?: string | null;
+  /** Lifetime number of final KYC rejections (survives resubmission). */
+  kycRejectionCount?: number;
+  /** Configured number of rejections after which the email is blocked. */
+  maxRejections?: number;
+  attemptsRemaining?: number;
 }
 
 /* ===========================================================================
@@ -705,6 +780,11 @@ export interface KycSubmissionListItem {
   status: KycReviewStatus;
   /** Company-level reject note (`kyc_rejection_reason`). Set only after account reject. */
   rejectionReason?: string | null;
+  /** Prior final rejections (`kyc_rejection_count`) and the configured block limit. */
+  kycRejectionCount?: number;
+  maxRejections?: number;
+  /** The company's email is currently in the blocked-email list (separate from suspension). */
+  emailBlocked?: boolean;
   /** Earliest document upload time (ISO 8601). */
   submittedAt?: string;
   documents: KycDocument[];
@@ -1227,6 +1307,8 @@ export interface TrialSettings {
   manualExtension: boolean;
   autoDowngrade: boolean;
   expiryNotification: boolean;
+  /** Final KYC rejections after which the company email is blocked (backend: 1-10). */
+  kycMaxRejections: number;
 }
 
 /** Global feature flags (System Management → Platform Controls). */

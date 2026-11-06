@@ -15,21 +15,27 @@ export const PASSWORD_RULES: { label: string; test: (v: string) => boolean }[] =
   { label: "A special character (@$!%*?&)", test: (v) => /[@$!%*?&]/.test(v) },
 ];
 
+/** Member registration rules (new UI): 8+ characters with a number. Reset-password keeps PASSWORD_RULES. */
+export const REGISTRATION_PASSWORD_RULES: { label: string; test: (v: string) => boolean }[] = [
+  { label: "At least 8 characters", test: (v) => v.length >= 8 },
+  { label: "A number", test: (v) => /\d/.test(v) },
+];
+
 const STRENGTH_LABELS = ["Too weak", "Weak", "Fair", "Good", "Strong"];
 
 /** How many of the rules the given value satisfies. */
-export function metRuleCount(value: string) {
-  return PASSWORD_RULES.filter((r) => r.test(value)).length;
+export function metRuleCount(value: string, rules = PASSWORD_RULES) {
+  return rules.filter((r) => r.test(value)).length;
 }
 
 /** "Strength: Fair" caption above a 4-segment bar. */
-export function PasswordStrengthMeter({ value }: { value: string }) {
-  const met = metRuleCount(value);
-  const filledBars = Math.round((met / PASSWORD_RULES.length) * 4);
+export function PasswordStrengthMeter({ value, rules = PASSWORD_RULES }: { value: string; rules?: typeof PASSWORD_RULES }) {
+  const met = metRuleCount(value, rules);
+  const filledBars = Math.round((met / rules.length) * 4);
   return (
     <div className="pt-1">
       <span className="text-[10px] font-bold uppercase text-on-surface-variant">
-        Strength: {STRENGTH_LABELS[met]}
+        Strength: {STRENGTH_LABELS[Math.round((met / rules.length) * 4)]}
       </span>
       <div className="mt-1.5 flex gap-1">
         {[0, 1, 2, 3].map((i) => (
@@ -46,14 +52,14 @@ export function PasswordStrengthMeter({ value }: { value: string }) {
 }
 
 /** The "Password Requirements" card, each rule ticking off as it's satisfied. */
-export function PasswordRequirements({ value }: { value: string }) {
+export function PasswordRequirements({ value, rules = PASSWORD_RULES }: { value: string; rules?: typeof PASSWORD_RULES }) {
   return (
     <div className="space-y-3 rounded-xl bg-surface-container-low p-4">
       <p className="font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
         Password Requirements
       </p>
       <div className="grid grid-cols-1 gap-y-2">
-        {PASSWORD_RULES.map((rule) => {
+        {rules.map((rule) => {
           const met = rule.test(value);
           return (
             <div

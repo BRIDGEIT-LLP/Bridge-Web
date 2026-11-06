@@ -272,7 +272,7 @@ export function Navbar() {
     const pathname = usePathname();
     // The dashboard owns its own chrome (sidebar + DashboardNavbar), and the
     // marketing landing page renders its own header, so hide the global navbar on them.
-    if (pathname === "/landing-page" || pathname?.startsWith("/dashboard")) return null;
+    if (pathname === "/landing-page" || pathname === "/registration" || pathname === "/registration/business-check" || pathname === "/registration/complete-profile" || pathname === "/registration/document-upload" || pathname === "/registration/intent" || pathname === "/registration/review" || pathname === "/registration/verification-status" || pathname?.startsWith("/dashboard")) return null;
 
     return (
         <nav className="flex-none flex items-center justify-between px-4 py-2 w-full max-w-[1200px] mx-auto sm:px-6">

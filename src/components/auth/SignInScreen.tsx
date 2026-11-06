@@ -117,7 +117,7 @@ export function SignInScreen({
   showRegister = true,
 }: SignInScreenProps) {
   const router = useRouter();
-  const { setData } = useOnboarding();
+  const { data: onboardingDraft, setData, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -148,6 +148,10 @@ export function SignInScreen({
         const fullName = [res.data.first_name, res.data.last_name].filter(Boolean).join(" ").trim();
         setSession({ role, user: { email: values.email, name: fullName || undefined } });
       }
+      // A leftover registration draft belongs to whoever filled it in. Signing in as someone else must not
+      // inherit their answers (e.g. a different account's intent showing up as "selected").
+      const draftEmail = String(onboardingDraft.email ?? "").trim().toLowerCase();
+      if (draftEmail && draftEmail !== values.email.trim().toLowerCase()) reset();
       // Persist the masked contact info for the verification-channel screen. Both
       // values arrive already masked from the backend — no client-side masking.
       setData({
@@ -157,7 +161,11 @@ export function SignInScreen({
       toast.success(res.message ?? SUCCESS_MESSAGES.LOGIN);
       router.push(`${basePath}/select-channel`);
     } catch (err) {
-      toast.error((err as ApiError).message ?? ERROR_MESSAGES.LOGIN_FAILED);
+      const apiErr = err as ApiError;
+      // Blocked email (KYC rejected too many times): keep the message on screen longer
+      // than a normal error toast — the user cannot do anything else from here.
+      const isBlocked = Boolean((apiErr.data as { data?: { isEmailBlocked?: boolean } } | undefined)?.data?.isEmailBlocked);
+      toast.error(apiErr.message ?? ERROR_MESSAGES.LOGIN_FAILED, isBlocked ? { duration: 15000 } : undefined);
     }
   };
 

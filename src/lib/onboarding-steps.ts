@@ -1,8 +1,6 @@
 /**
- * Single source of truth for the 5-step Corporate Portal registration flow.
- * The Stitch screens used inconsistent step counts; we normalize to 5 steps
- * using the Step-1 stepper labels (Details → Verification → Address →
- * Authorized → Finalize). Consumed by StepProgress and the OnboardingProvider's
+ * Single source of truth for the 7-step member application flow
+ * (Apply → Verify → Business → Profile → Intent → Documents → Review). Consumed by StepProgress and the OnboardingProvider's
  * goNext/goBack helpers so navigation and progress never drift.
  */
 
@@ -17,12 +15,17 @@ export interface OnboardingStep {
 }
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
-  { key: "details", route: "/registration", label: "Register", title: "Company Registration" },
+  { key: "details", route: "/registration", label: "Apply", title: "Apply for membership" },
   { key: "verification", route: "/registration/verify-account", label: "Verify", title: "Secure your account" },
-  { key: "profile", route: "/registration/complete-profile", label: "Profile", title: "Complete your profile" },
-  { key: "kycdoc", route: "/registration/document-upload", label: "Documents", title: "Document Upload" },
-  { key: "status", route: "/registration/verification-status", label: "Status", title: "Verification in Progress" },
+  { key: "business", route: "/registration/business-check", label: "Business", title: "Check your business" },
+  { key: "profile", route: "/registration/complete-profile", label: "Profile", title: "Your profile" },
+  { key: "intent", route: "/registration/intent", label: "Intent", title: "What are you looking for?" },
+  { key: "kycdoc", route: "/registration/document-upload", label: "Documents", title: "Upload your documents" },
+  { key: "review", route: "/registration/review", label: "Review", title: "Review your application" },
 ];
+
+/** Post-submission screen. Deliberately outside the stepper (the progress bar ends at Review). */
+export const STATUS_ROUTE = "/registration/verification-status";
 
 export const STEP_LABELS = ONBOARDING_STEPS.map((s) => s.label);
 

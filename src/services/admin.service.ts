@@ -321,6 +321,9 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
     mobileVerified: Boolean(raw.is_mobile_number_verified),
     status,
     rejectionReason,
+    kycRejectionCount: Number(raw.kyc_rejection_count ?? 0),
+    maxRejections: raw.kyc_max_rejections != null ? Number(raw.kyc_max_rejections) : undefined,
+    emailBlocked: Boolean(raw.is_email_blocked),
     submittedAt,
     documents,
   };

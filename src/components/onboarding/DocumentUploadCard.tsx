@@ -40,9 +40,14 @@ interface DocumentUploadCardProps {
   /** Optional max file size in MB; oversize files are rejected with a message. */
   maxSizeMB?: number;
   /** Which scan endpoint to hit on select. */
-  scanType: "image" | "document";
+  scanType: "image" | "document" | "auto";
   /** Document type sent to the scan API for every slot in this card. */
   docType: DocType;
+  /**
+   * New-UI tile: no card wrapper/header; the slot label sits inside the dashed drop box
+   * (used for the registration Documents step). Defaults to the original card.
+   */
+  tile?: boolean;
 }
 
 const DEFAULT_ACCEPT = "image/png,image/jpeg";
@@ -62,6 +67,7 @@ export function DocumentUploadCard({
   maxSizeMB,
   scanType,
   docType,
+  tile = false,
 }: DocumentUploadCardProps) {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -168,7 +174,8 @@ export function DocumentUploadCard({
     // Scan + upload.
     setUploading((prev) => ({ ...prev, [key]: true }));
     try {
-      const fn = scanType === "image" ? scanImage : scanDocument;
+      const fn =
+        scanType === "image" || (scanType === "auto" && file.type.startsWith("image/")) ? scanImage : scanDocument;
       const side = slots.find((s) => s.key === key)?.side;
       const { s3Key } = await fn(file, { docType, side });
       // Bail if the slot's file changed/was removed while scanning.
@@ -209,8 +216,9 @@ export function DocumentUploadCard({
 
   return (
     <section
-      className={`rounded-2xl p-3 sm:p-4 ${allUploaded ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
+      className={tile ? "" : `rounded-2xl p-3 sm:p-4 ${allUploaded ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
     >
+      {!tile && (
       <div className="mb-3 flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <div
@@ -232,18 +240,90 @@ export function DocumentUploadCard({
           </span>
         )}
       </div>
+      )}
 
-      <div className={`grid gap-3 ${slots.length > 1 ? "md:grid-cols-2" : "grid-cols-1"}`}>
+      <div className={tile ? "contents" : `grid gap-3 ${slots.length > 1 ? "md:grid-cols-2" : "grid-cols-1"}`}>
         {slots.map((slot) => {
           const file = files[slot.key];
           const previewUrl = previews[slot.key];
           const isUploading = !!uploading[slot.key];
           const isDone = !!s3Keys[slot.key];
+          if (tile) {
+            // Registration Documents step: prototype tile (.tile / .drop / .tstate, styled by registration.css under .bp).
+            const pick = () => inputRefs.current[slot.key]?.click();
+            let body: React.ReactNode;
+            if (!file) {
+              body = (
+                <button
+                  type="button"
+                  className="drop"
+                  onClick={pick}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const dropped = e.dataTransfer.files?.[0];
+                    if (dropped) setSlot(slot.key, dropped);
+                  }}
+                >
+                  <Icon name="upload" size={20} />
+                  <strong>{slot.label}</strong>
+                  <span className="cta">Click to upload or drag and drop</span>
+                  <span className="sub">{hint}</span>
+                </button>
+              );
+            } else if (isUploading) {
+              body = (
+                <div className="tstate uploading">
+                  <strong>{slot.label}</strong>
+                  <span className="tmeta">{file.name} · Scanning…</span>
+                  <div className="bar"><span /></div>
+                </div>
+              );
+            } else {
+              body = (
+                <div className="tstate done">
+                  <strong>{slot.label}</strong>
+                  <span className="tmeta">
+                    <Icon name="check" size={12} />
+                    <span className="fname">{file.name}</span>
+                    <span style={{ flex: "none" }}>· {(file.size / (1024 * 1024)).toFixed(1)} MB</span>
+                  </span>
+                  <div className="tactions">
+                    {isDone && (
+                      <button type="button" className="link" onClick={() => setPreviewKey(s3Keys[slot.key])}>View</button>
+                    )}
+                    <button type="button" className="link" onClick={pick}>Replace</button>
+                    <button type="button" className="link danger" onClick={() => setSlot(slot.key, null)}>Remove</button>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={slot.key} className="tile">
+                {body}
+                {slotErrors[slot.key] && <span className="tile-error">{slotErrors[slot.key]}</span>}
+                <input
+                  ref={(el) => {
+                    inputRefs.current[slot.key] = el;
+                  }}
+                  type="file"
+                  accept={accept}
+                  className="hidden"
+                  onChange={(e) => {
+                    setSlot(slot.key, e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            );
+          }
           return (
             <div key={slot.key} className="flex flex-col gap-2">
-              <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                {slot.label}
-              </span>
+              {(!tile || file) && (
+                <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                  {slot.label}
+                </span>
+              )}
 
               {file ? (
                 <div className="group relative h-32 overflow-hidden rounded-xl border-2 border-primary/20 bg-surface-container">
@@ -322,17 +402,32 @@ export function DocumentUploadCard({
                     const dropped = e.dataTransfer.files?.[0];
                     if (dropped) setSlot(slot.key, dropped);
                   }}
-                  className="group flex min-h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container-lowest/50 px-3 py-4 transition-colors hover:bg-surface-container-lowest sm:px-4"
+                  className={
+                    tile
+                      ? "group flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest px-3 py-5 transition-colors hover:border-primary hover:bg-primary-container/30"
+                      : "group flex min-h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container-lowest/50 px-3 py-4 transition-colors hover:bg-surface-container-lowest sm:px-4"
+                  }
                 >
-                  <div className="mb-2 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/5 transition-transform group-hover:scale-110 sm:size-10">
-                    <Icon name="upload_file" size={20} className="text-primary" />
-                  </div>
-                  <p className="mb-0.5 text-center text-xs font-bold leading-snug text-on-surface sm:text-sm">
-                    Click to upload or drag &amp; drop
-                  </p>
-                  <p className="text-center text-[11px] leading-snug text-on-surface-variant sm:text-xs">
-                    {hint}
-                  </p>
+                  {tile ? (
+                    <>
+                      <Icon name="upload" size={20} className="text-primary" />
+                      <strong className="mt-1 text-sm text-on-surface">{slot.label}</strong>
+                      <span className="text-center text-sm font-bold text-primary">Click to upload or drag &amp; drop</span>
+                      <span className="text-center text-xs text-on-surface-variant">{hint}</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-2 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/5 transition-transform group-hover:scale-110 sm:size-10">
+                        <Icon name="upload_file" size={20} className="text-primary" />
+                      </div>
+                      <p className="mb-0.5 text-center text-xs font-bold leading-snug text-on-surface sm:text-sm">
+                        Click to upload or drag &amp; drop
+                      </p>
+                      <p className="text-center text-[11px] leading-snug text-on-surface-variant sm:text-xs">
+                        {hint}
+                      </p>
+                    </>
+                  )}
                 </button>
               )}
 
