@@ -105,8 +105,11 @@ export function phoneErrorForDialCode(
   return undefined;
 }
 
-/** Min 8 chars with lowercase, uppercase, number and symbol. */
+/** Min 8 chars with lowercase, uppercase, number and symbol. Still used for admin passwords. */
 export const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+/** Member registration rule from the new UI: min 8 chars with at least one number. */
+export const MEMBER_PASSWORD_REGEX = /^(?=.*\d).{8,}$/;
 
 /** 15-character GSTIN. */
 export const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;

@@ -23,6 +23,7 @@ import {
 } from "@/lib/startup-profile-options";
 import {
   INVESTMENT_STAGES,
+  INVESTOR_GEOGRAPHY_REGIONS,
   INVESTOR_TYPES,
   PRIMARY_INTENT_OPTIONS,
 } from "@/lib/investor-profile-options";
@@ -34,6 +35,7 @@ import {
   REVENUE_BANDS,
   EXPORT_READINESS,
   BUSINESS_INTENTS,
+  B2B_GEOGRAPHY_REGIONS,
 } from "@/lib/b2b-profile-options";
 import { COUNTRIES, CONTINENTS, DIAL_CODES } from "@/lib/countries";
 
@@ -88,7 +90,7 @@ const REGISTRY: Record<string, FieldOptionConfig> = {
   // ── investor ──
   prefrerred_investment_stage: { options: INVESTMENT_STAGES, multiple: true },
   investor_sector_preference: { options: INDUSTRY_SECTORS, multiple: true },
-  geographic_investment_preference: { options: COUNTRIES, multiple: true, searchable: true },
+  geographic_investment_preference: { options: INVESTOR_GEOGRAPHY_REGIONS, multiple: true },
   geographic_investment_preference_continent: { options: CONTINENTS, multiple: true },
   ticket_currency: { options: CURRENCIES, multiple: false },
   investor_type: { options: INVESTOR_TYPES, multiple: false },
@@ -102,7 +104,7 @@ const REGISTRY: Record<string, FieldOptionConfig> = {
   revenue_band: { options: REVENUE_BANDS, multiple: false },
   export_rediness: { options: EXPORT_READINESS, multiple: false },
   b2b_intent: { options: BUSINESS_INTENTS, multiple: false },
-  b2b_geography_country: { options: COUNTRIES, multiple: true, searchable: true },
+  b2b_geography_country: { options: B2B_GEOGRAPHY_REGIONS, multiple: true },
   b2b_geography_continent: { options: CONTINENTS, multiple: true },
 };
 
@@ -218,7 +220,7 @@ const FIELD_LABELS: Record<string, string> = {
   prefrerred_investment_stage: "Preferred Investment Stages",
   ticket_size_amt_min: "Ticket Size",
   ticket_size_amt_max: "Ticket Size",
-  geographic_investment_preference: "Geographic Investment Preference",
+  geographic_investment_preference: "Where you invest",
   investor_type: "Investor Type",
   investor_intent: "Primary Intent",
   investor_portfolio_overview: "Portfolio Overview",
@@ -243,7 +245,7 @@ const FIELD_LABELS: Record<string, string> = {
   products_ervice_Offered: "Products / Services Offered",
   business_requirements: "Business Requirements",
   operational_capacity_description: "Operational Capacity Description",
-  b2b_geography_country: "Geographies",
+  b2b_geography_country: "Where you sell",
   b2b_geography_continent: "Geographies",
   // Registration says "Registered Office / Residential Address (as per government ID)"
   // for investors and drops the parenthetical for b2b. One column, so the shorter

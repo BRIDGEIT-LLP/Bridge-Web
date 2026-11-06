@@ -5,15 +5,21 @@
  * regexes are re-exported from `startup-profile-options` to avoid duplication.
  */
 
-import { FUNDING_STAGES, type Option } from "@/lib/startup-profile-options";
+import type { Option } from "@/lib/startup-profile-options";
 
 export type { Option };
 
 /**
- * Preferred Investment Stages (multi-select). Same buckets as the startup
- * funding stages — re-exported under an investor-facing name.
+ * Preferred Investment Stages (multi-select chips, "Stages you invest in").
+ * Same values as the startup funding stages; labels are the investor-facing ones.
  */
-export const INVESTMENT_STAGES: Option[] = FUNDING_STAGES;
+export const INVESTMENT_STAGES: Option[] = [
+  { value: "pre_seed", label: "Pre-seed" },
+  { value: "seed", label: "Seed" },
+  { value: "series_a", label: "Series A" },
+  { value: "series_b", label: "Series B" },
+  { value: "growth", label: "Growth" },
+];
 
 /** Investor Type (single select). */
 export const INVESTOR_TYPES: Option[] = [
@@ -33,3 +39,13 @@ export const PRIMARY_INTENT_OPTIONS: Option[] = [
 
 /** Max words allowed in the portfolio overview. */
 export const PORTFOLIO_MAX_WORDS = 300;
+
+/** "Where you invest" regions. Saved in geographic_investment_preference (the continent column is left empty). */
+export const INVESTOR_GEOGRAPHY_REGIONS: Option[] = [
+  { value: "north_india", label: "North India" },
+  { value: "south_india", label: "South India" },
+  { value: "west_india", label: "West India" },
+  { value: "east_india", label: "East India" },
+  { value: "middle_east", label: "Middle East" },
+  { value: "south_east_asia", label: "South-east Asia" },
+];

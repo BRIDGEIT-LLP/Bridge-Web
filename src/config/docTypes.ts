@@ -6,6 +6,7 @@
 export const DOC_TYPE = {
   AADHAAR: "AADHAAR",
   PAN: "PAN",
+  GST_CERTIFICATE: "GST_CERTIFICATE",
   PITCH_DECK: "PITCH_DECK",
   INCORPORATION_CERTIFICATE: "INCORPORATION_CERTIFICATE",
   /** Optional intro video — the backend files videos under `intro-video/`. */
@@ -20,6 +21,7 @@ export const DOC_MAX_MB: Record<DocType, number> = {
   PAN: 5,
   PROFILE_PHOTO: 5,
   INTRO_VIDEO: 30,
+  GST_CERTIFICATE: 20,
   PITCH_DECK: 20,
   INCORPORATION_CERTIFICATE: 20,
 };

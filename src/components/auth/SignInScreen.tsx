@@ -117,7 +117,7 @@ export function SignInScreen({
   showRegister = true,
 }: SignInScreenProps) {
   const router = useRouter();
-  const { setData } = useOnboarding();
+  const { data: onboardingDraft, setData, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -148,6 +148,10 @@ export function SignInScreen({
         const fullName = [res.data.first_name, res.data.last_name].filter(Boolean).join(" ").trim();
         setSession({ role, user: { email: values.email, name: fullName || undefined } });
       }
+      // A leftover registration draft belongs to whoever filled it in. Signing in as someone else must not
+      // inherit their answers (e.g. a different account's intent showing up as "selected").
+      const draftEmail = String(onboardingDraft.email ?? "").trim().toLowerCase();
+      if (draftEmail && draftEmail !== values.email.trim().toLowerCase()) reset();
       // Persist the masked contact info for the verification-channel screen. Both
       // values arrive already masked from the backend — no client-side masking.
       setData({

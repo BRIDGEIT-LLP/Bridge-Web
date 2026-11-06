@@ -4,6 +4,11 @@ import { getUserId } from "@/lib/auth-session";
 import { parseConnectionStatus } from "@/lib/connections";
 import type { UserProfilePayload, BuildProfileResponse, UserSearchResult, ConnectionStatus } from "@/types/api.types";
 
+/** "Save as draft": the registration step the draft is saved from (stored server-side, used to resume). */
+export interface DraftOptions {
+  step: "business" | "profile" | "intent" | "documents" | "review";
+}
+
 /**
  * Create the user profile (complete-profile step).
  *
@@ -11,8 +16,14 @@ import type { UserProfilePayload, BuildProfileResponse, UserSearchResult, Connec
  * derived from the JWT on the server, so it is not sent in the body. Auth rides on
  * the httpOnly session cookie (the axios instance sets `withCredentials`).
  */
-export async function buildProfile(payload: UserProfilePayload): Promise<BuildProfileResponse> {
-  const { data } = await api.post<BuildProfileResponse>(API_ENDPOINTS.BUILD_PROFILE, payload);
+export async function buildProfile(
+  payload: UserProfilePayload,
+  /** A draft keeps what is filled in, does not complete the profile, and remembers the step it was saved from. */
+  draft?: DraftOptions,
+): Promise<BuildProfileResponse> {
+  const { data } = await api.post<BuildProfileResponse>(API_ENDPOINTS.BUILD_PROFILE, payload, {
+    params: draft ? { draft: true, step: draft.step } : undefined,
+  });
   clearUserProfileCache();
   return data;
 }
@@ -176,4 +187,38 @@ export async function getUserRoleDetails(params: {
  */
 export interface SwitchRoleField extends ProfileField {
   isRequired?: boolean;
+}
+/**
+ * Save the "Check your business" identifiers (PUT /api/v1/users/business-check).
+ * What the server accepts depends on the role in the session: founders send CIN + PAN, investors PAN
+ * (+ optional CIN), business owners nothing new (their GST/CIN were saved at registration).
+ */
+export async function saveBusinessCheck(
+  payload: {
+    cin_number?: string;
+    gst_number?: string;
+    pan_number?: string;
+  },
+  draft?: DraftOptions,
+): Promise<{ success: boolean; message?: string; data?: { cin_verified?: boolean; pan_saved?: boolean } }> {
+  const { data } = await api.put(API_ENDPOINTS.BUSINESS_CHECK, payload, {
+    params: draft ? { draft: true, step: draft.step } : undefined,
+  });
+  return data;
+}
+
+export interface BusinessCheckData {
+  role: string;
+  gst_number: string | null;
+  is_gst_verified: boolean;
+  cin_number: string | null;
+  is_cin_verified: boolean;
+  pan_number: string | null;
+  pan_status: string | null;
+}
+
+/** What saveBusinessCheck stored (PAN decrypted), used to prefill the Business step. */
+export async function getBusinessCheck(): Promise<{ success: boolean; message?: string; data?: BusinessCheckData }> {
+  const { data } = await api.get(API_ENDPOINTS.BUSINESS_CHECK);
+  return data;
 }

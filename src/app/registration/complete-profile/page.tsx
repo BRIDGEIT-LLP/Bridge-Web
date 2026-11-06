@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BrandLockup } from "@/components/layout/navbar";
+import { useRouter } from "next/navigation";
 import { useForm, Controller, useWatch, type FieldErrors } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
@@ -10,12 +12,16 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/modal/Modal";
 import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
-import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
-import { StepProgress } from "@/components/onboarding/StepProgress";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { AccountSummary } from "@/components/onboarding/AccountSummary";
+import { ONBOARDING_STEPS, stepNumber } from "@/lib/onboarding-steps";
+import "../registration.css";
 import { useOnboarding, type OnboardingData } from "@/components/onboarding/OnboardingProvider";
 import { COUNTRIES, CONTINENTS, continentForCountry, DIAL_CODES } from "@/lib/countries";
 import { phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
+import { URL_REGEX } from "@/lib/startup-profile-options";
 import {
   StartupProfileFields,
   defaultStartupValues,
@@ -48,6 +54,15 @@ const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Hard character cap for the short bio. */
 const BIO_MAX_CHARS = 300;
+
+/** State picker for the new UI's State / City row (UI-only for now: no backend column). */
+const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+  "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+].map((v) => ({ value: v, label: v }));
 
 /** Human-readable labels for the role values captured at registration. */
 const ROLE_LABELS: Record<string, string> = {
@@ -173,6 +188,19 @@ function mergeKeepingFilled<T extends object>(live: T, incoming: T): T {
   return out as T;
 }
 
+const DEFAULT_COUNTRY = "IN";
+
+/** ₹ Cr (the new UI's unit) to rupees, or undefined when blank/invalid. 1 Cr = 10,000,000. */
+const crToRupees = (v?: string): number | undefined => {
+  const n = toFloat(v ?? "");
+  return n === undefined ? undefined : Math.round(n * 1e7);
+};
+/** Rupees back to ₹ Cr for prefilling the new UI's field from a saved profile. */
+const rupeesToCr = (v: string): string => {
+  const n = toFloat(v);
+  return n === undefined ? "" : String(Number((n / 1e7).toFixed(4)));
+};
+
 /** Map the camelCase form values to the backend `user` table columns (snake_case). */
 function toUserProfilePayload(values: CompleteProfileForm, role: string): UserProfilePayload {
   const common: UserProfilePayload = {
@@ -182,8 +210,12 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
     // Optional — omitted entirely when no video was added.
     intro_video: values.introVideo || undefined,
     short_bio: values.bio,
-    country: values.country,
-    continent: values.continent,
+    // Country/continent live in the optional "more about you" block. The new UI is India-only (state + city),
+    // so a blank country defaults to India instead of blocking the user.
+    country: values.country || DEFAULT_COUNTRY,
+    continent: values.continent || continentForCountry(values.country || DEFAULT_COUNTRY),
+    state: values.state,
+    city: values.city,
     mobile_number: nationalDigits(values.contact),
     country_code: values.countryCode,
     company_email: values.email,
@@ -201,8 +233,9 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
       startup_industry_sector: s.industrySectors,
       funding_stage: s.fundingStage,
       funding_currency: s.fundingCurrency,
+      // The optional legacy min/max win; otherwise the new UI's single "Raising (₹ Cr)" becomes the ask.
       funding_ask_amt_min: toFloat(s.fundingMin),
-      funding_ask_amt_max: toFloat(s.fundingMax),
+      funding_ask_amt_max: toFloat(s.fundingMax) ?? crToRupees(s.raisingCr),
       use_of_funds: s.useOfFunds,
       team_size_min: team.min,
       team_size_max: team.max,
@@ -222,9 +255,10 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
       organization_name: values.legalName,
       linkedin_profile_url: i.linkedinUrl,
       company_website_url: i.websiteUrl,
-      ticket_size_amt_min: toFloat(i.ticketMin),
-      ticket_size_amt_max: toFloat(i.ticketMax),
-      ticket_currency: i.ticketCurrency,
+      // The optional legacy currency + min/max win; otherwise the new UI's ₹ Cr cheque range is stored in INR.
+      ticket_size_amt_min: toFloat(i.ticketMin) ?? crToRupees(i.ticketMinCr),
+      ticket_size_amt_max: toFloat(i.ticketMax) ?? crToRupees(i.ticketMaxCr),
+      ticket_currency: toFloat(i.ticketMin) !== undefined || toFloat(i.ticketMax) !== undefined ? i.ticketCurrency : "INR",
       prefrerred_investment_stage: i.investmentStages,
       investor_sector_preference: i.sectorPreferences,
       geographic_investment_preference: i.geoCountries,
@@ -258,6 +292,7 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
       products_ervice_Offered: b.productsServices,
       business_requirements: b.businessRequirements,
       b2b_intent: b.businessIntent,
+      operational_capacity_description: b.operationalCapacity || undefined,
       address: b.address,
     });
   }
@@ -333,6 +368,8 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
   if (has("short_bio")) patch.bio = str("short_bio");
   if (has("country")) patch.country = str("country");
   if (has("continent")) patch.continent = str("continent");
+  if (has("state")) patch.state = str("state");
+  if (has("city")) patch.city = str("city");
   if (hasArr("primary_sector")) patch.primarySectors = arr("primary_sector");
   // The stored picture's storage key. `buildFormDefaults` always starts this at "" —
   // the onboarding wizard's localStorage only ever held it for the current session —
@@ -380,6 +417,9 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
     if (has("ticket_size_amt_min")) investor.ticketMin = str("ticket_size_amt_min");
     if (has("ticket_size_amt_max")) investor.ticketMax = str("ticket_size_amt_max");
     if (has("ticket_currency")) investor.ticketCurrency = str("ticket_currency");
+    // Saved INR amounts also fill the new UI's ₹ Cr fields.
+    if (has("ticket_size_amt_min") && (!has("ticket_currency") || str("ticket_currency") === "INR")) investor.ticketMinCr = rupeesToCr(str("ticket_size_amt_min"));
+    if (has("ticket_size_amt_max") && (!has("ticket_currency") || str("ticket_currency") === "INR")) investor.ticketMaxCr = rupeesToCr(str("ticket_size_amt_max"));
     if (hasArr("prefrerred_investment_stage")) investor.investmentStages = arr("prefrerred_investment_stage");
     if (hasArr("investor_sector_preference")) investor.sectorPreferences = arr("investor_sector_preference");
     if (hasArr("geographic_investment_preference")) investor.geoCountries = arr("geographic_investment_preference");
@@ -413,6 +453,7 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
     if (has("products_ervice_Offered")) b2b.productsServices = str("products_ervice_Offered");
     if (has("business_requirements")) b2b.businessRequirements = str("business_requirements");
     if (has("b2b_intent")) b2b.businessIntent = str("b2b_intent");
+    if (has("operational_capacity_description")) b2b.operationalCapacity = str("operational_capacity_description");
     if (has("address")) b2b.address = str("address");
     if (linkedinUrl) b2b.linkedinUrl = linkedinUrl;
     if (websiteUrl) b2b.websiteUrl = websiteUrl;
@@ -438,6 +479,8 @@ function buildFormDefaults(data: OnboardingData): CompleteProfileForm {
     bio: (data.bio as string) ?? "",
     country: (data.country as string) ?? "",
     continent: (data.continent as string) ?? "",
+    state: (data.state as string) ?? "",
+    city: (data.city as string) ?? "",
     primarySectors: (data.primarySectors as string[]) ?? [],
     legalName: (data.legalName as string) ?? "",
     email: (data.email as string) ?? "",
@@ -460,6 +503,37 @@ function buildFormDefaults(data: OnboardingData): CompleteProfileForm {
   };
 }
 
+/** True when a watched form value counts as "filled in" for the completeness ring. */
+function hasValue(v: unknown): boolean {
+  if (v === undefined || v === null) return false;
+  if (typeof v === "string") return v.trim() !== "";
+  if (Array.isArray(v)) return !isBlank(v);
+  return true;
+}
+
+/**
+ * Completeness ring value for the new UI. Approximation: share of filled leaf values across
+ * the shared fields plus the active role section. (The prototype weights required/recommended/
+ * optional 70/20/10; the real form's required rules are enforced by validation instead.)
+ */
+function profileCompleteness(values: CompleteProfileForm, role: string): number {
+  const section =
+    role === "startup" ? values.startup : role === "investor" ? values.investor : role === "b2b_enterprise" ? values.b2b : {};
+  const leaves: unknown[] = [
+    values.firstName,
+    values.lastName,
+    values.country,
+    values.primarySectors,
+    values.bio,
+    values.photo,
+    ...Object.entries(section ?? {})
+      .filter(([k]) => !/intent/i.test(k))
+      .map(([, v]) => v),
+  ];
+  const filled = leaves.filter(hasValue).length;
+  return Math.round((filled / leaves.length) * 100);
+}
+
 export default function CompleteProfilePage() {
   const { data, setData, goNext, isDataLoaded } = useOnboarding();
   // Local object URL for the preview circle; the form value holds the uploaded s3Key.
@@ -469,7 +543,12 @@ export default function CompleteProfilePage() {
   // (not in render) so it reflects the latest values from the uncontrolled inputs.
   const [previewData, setPreviewData] = useState<CompleteProfileForm | null>(null);
 
+  const router = useRouter();
+  const [aboutLegacyOpen, setAboutLegacyOpen] = useState(false);
   const role = String(data.role ?? "");
+  // New UI splits the profile into "About you" and a role-specific tab. Both stay mounted
+  // (hidden) so react-hook-form keeps every field registered and validates the whole form.
+  const [tab, setTab] = useState<"about" | "role">("about");
 
   const {
     register,
@@ -486,6 +565,46 @@ export default function CompleteProfilePage() {
     defaultValues: buildFormDefaults(data),
   });
 
+  const roleKey = role === "startup" ? "startup" : role === "investor" ? "investor" : role === "b2b_enterprise" ? "b2b" : null;
+  const stepNo = stepNumber("profile");
+
+  // Save as draft: whatever is filled in is written to the database (build-profile in draft mode, which does not
+  // complete the profile and records the step) and kept in the onboarding blob (localStorage) as well.
+  const [savedAt, setSavedAt] = useState<number | null>(data.draftSavedAt ? Number(data.draftSavedAt) : null);
+  const saveDraft = async () => {
+    const v = getValues();
+    try {
+      await buildProfile(toUserProfilePayload(v, role), { step: "profile" });
+    } catch (err) {
+      const e = err as ApiError;
+      const fieldErrs = (e.data as { data?: { field: string; message: string }[] } | undefined)?.data;
+      toast.error(fieldErrs?.[0]?.message ?? e.message ?? "Could not save your draft. Please try again.");
+      return;
+    }
+    const now = Date.now();
+    setData({
+      firstName: v.firstName,
+      lastName: v.lastName,
+      bio: v.bio,
+      country: v.country,
+      continent: v.continent,
+      state: v.state,
+      city: v.city,
+      primarySectors: v.primarySectors,
+      introVideo: v.introVideo,
+      ...(role === "startup" ? { startup: v.startup } : {}),
+      ...(role === "investor" ? { investor: v.investor } : {}),
+      ...(role === "b2b_enterprise" ? { b2b: v.b2b } : {}),
+      draftSavedAt: now,
+    });
+    setSavedAt(now);
+    toast.success("Draft saved. You can close this tab and pick up later.");
+  };
+  const draftLabel = savedAt ? `at ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "";
+
+  const allValues = useWatch({ control }) as CompleteProfileForm;
+  const completeness = profileCompleteness(allValues, role);
+  const roleTabLabel = role === "startup" ? "Your raise" : role === "investor" ? "How you invest" : "Your business";
   const bio = useWatch({ control, name: "bio" });
   const bioChars = (bio ?? "").length;
   // The saved picture's storage key (from GET /users/profile). `photo` above is only
@@ -569,59 +688,272 @@ export default function CompleteProfilePage() {
   const onInvalid = (formErrors: FieldErrors<CompleteProfileForm>) => {
     const first = firstError(formErrors);
     if (!first) return;
+    // Reveal the tab that holds the offending field before focusing it.
+    setTab(/^(startup|investor|b2b)\./.test(first.path) ? "role" : "about");
     toast.error(first.message);
-    const el = document.getElementById(first.path.split(".").pop() ?? "");
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    (el as HTMLElement | null)?.focus?.();
+    // The previous-UI fields live in a collapsible block; let React open it before focusing.
+    setTimeout(() => {
+      const el = document.getElementById(first.path.split(".").pop() ?? "");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      (el as HTMLElement | null)?.focus?.();
+    }, 50);
   };
 
+  /**
+   * The new UI collects intent on the next screen, which completes the profile. Here the profile is stored in
+   * the database as a draft (resuming lands on the Intent step); the payload is also held in onboarding state.
+   */
   const onSubmit = async (values: CompleteProfileForm) => {
+    const profilePayload = toUserProfilePayload(values, role);
     try {
-      const profilePayload = toUserProfilePayload(values, role);
-      const res = await buildProfile(profilePayload);
-      toast.success(res.message ?? "Profile saved.");
-      // Persist UI-shaped fields so prefill keeps working on back-navigation.
-      setData({
-        firstName: values.firstName,
-        lastName: values.lastName,
-        bio: values.bio,
-        country: values.country,
-        continent: values.continent,
-        primarySectors: values.primarySectors,
-        photo: values.photo,
-        introVideo: values.introVideo,
-        countryCode: values.countryCode,
-        contact: nationalDigits(values.contact),
-        ...(role === "startup" ? { startup: values.startup } : {}),
-        ...(role === "investor" ? { investor: values.investor } : {}),
-        ...(role === "b2b_enterprise" ? { b2b: values.b2b } : {}),
-        profilePayload,
-      });
-      goNext("profile");
+      await buildProfile(profilePayload, { step: "intent" });
     } catch (err) {
       const e = err as ApiError;
-      // Surface the first backend field-validation error if present, else the message.
       const fieldErrs = (e.data as { data?: { field: string; message: string }[] } | undefined)?.data;
       toast.error(fieldErrs?.[0]?.message ?? e.message ?? "Couldn't save your profile. Please try again.");
+      return;
     }
+    setData({
+      firstName: values.firstName,
+      lastName: values.lastName,
+      bio: values.bio,
+      country: values.country,
+      continent: values.continent,
+      state: values.state,
+      city: values.city,
+      primarySectors: values.primarySectors,
+      photo: values.photo,
+      introVideo: values.introVideo,
+      countryCode: values.countryCode,
+      contact: nationalDigits(values.contact),
+      ...(role === "startup" ? { startup: values.startup } : {}),
+      ...(role === "investor" ? { investor: values.investor } : {}),
+      ...(role === "b2b_enterprise" ? { b2b: values.b2b } : {}),
+      profilePayload,
+    });
+    goNext("profile");
+  };
+
+  const summary = {
+    firstName: allValues.firstName,
+    lastName: allValues.lastName,
+    legalName: allValues.legalName,
+    email: allValues.email,
+    countryCode: allValues.countryCode,
+    contact: allValues.contact,
   };
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-80px)] max-w-[960px] flex-col justify-center gap-4 px-4 py-8">
-      <StepProgress stepKey="profile" />
-      <div className="flex w-full flex-col gap-5 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:p-8">
-        <FocusedHeader backLabel="Back to Overview" backHref="/registration/verify-account" />
-
-        <div className="flex flex-col gap-1">
-          <h1 className="font-headline text-2xl font-bold leading-tight tracking-tight text-on-surface md:text-3xl">
-            Complete your profile
-          </h1>
-          <p className="text-sm text-on-surface-variant">
-            Help us personalize your experience by providing a few more details about yourself.
-          </p>
+    <div className="bp bp-profile">
+      <div className="ob">
+        <div className="ob-top">
+          <Link className="brand" href="/" aria-label="Bridge Platform home">
+            <BrandLockup />
+          </Link>
+          <div className="hstack">
+            {savedAt && (
+              <p className="draft-note">
+                <span>Draft saved {draftLabel}</span>
+              </p>
+            )}
+            <button className="btn secondary sm" type="button" onClick={() => void saveDraft()}>
+              Save as draft
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate className="flex flex-col gap-6">
+        <ol
+          className="ob-progress"
+          style={{ gridTemplateColumns: `repeat(${ONBOARDING_STEPS.length}, 1fr)` }}
+          aria-label="Application progress"
+        >
+          {ONBOARDING_STEPS.map((s, i) => (
+            <li
+              key={s.key}
+              className={stepNo > i + 1 ? "done" : stepNo === i + 1 ? "current" : ""}
+              aria-current={stepNo === i + 1 ? "step" : undefined}
+            >
+              {i + 1} {s.label}
+            </li>
+          ))}
+        </ol>
+
+        <main className="ob-main">
+      <div className="ob-card wide">
+        <Link className="back" href="/registration/business-check">
+          <ArrowLeft size={14} /> Back
+        </Link>
+
+        <div className="spread" style={{ alignItems: "flex-start" }}>
+          <div className="grow">
+            <h2>Your profile</h2>
+            <p className="lede">
+              This is what other members see before an introduction. Your email and mobile are already saved.
+            </p>
+          </div>
+          <div
+            className="ring"
+            style={{ ["--p" as string]: completeness }}
+            data-label={`${completeness}%`}
+            title="Profile completeness"
+            aria-label={`Profile ${completeness}% complete`}
+          />
+        </div>
+
+        <div className="hstack" style={{ ["--g" as string]: "8px" }} role="tablist">
+          {([
+            ["about", "1 About you"],
+            ["role", `2 ${roleTabLabel}`],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className="chipsel"
+              style={tab === key ? { background: "var(--primary)", color: "#fff", borderColor: "var(--primary)" } : undefined}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate className="stack">
+          <div className={tab === "about" ? "flex flex-col gap-6" : "hidden"}>
+          {/* New UI: one-line account summary (the full locked panel is kept in the collapsible block below). */}
+          <AccountSummary {...summary} />
+
+          {/* State and city are saved on the user (user.state / user.city) via build-profile. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="state"
+              rules={{ required: "Add state" }}
+              render={({ field }) => (
+                <Select
+                  variant="ux"
+                  id="state"
+                  label="State"
+                  required
+                  placeholder="Select a state"
+                  options={INDIAN_STATES}
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  error={errors.state?.message}
+                />
+              )}
+            />
+            <Input
+              variant="ux"
+              id="city"
+              label="City"
+              required
+              placeholder="Mumbai"
+              error={errors.city?.message}
+              {...register("city", { required: "Add city" })}
+            />
+          </div>
+
+          {/* Sectors: same primarySectors field as before, shown as chips */}
+          <Controller
+            control={control}
+            name="primarySectors"
+            rules={{ validate: (v) => v.length > 0 || "Select at least one primary sector." }}
+            render={({ field }) => (
+              <div className="flex flex-col gap-2" id="primarySectors" tabIndex={-1}>
+                <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">Sectors</span>
+                <div className="flex flex-wrap gap-2">
+                  {PRIMARY_SECTORS.map((o) => {
+                    const on = field.value.includes(o.value);
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => field.onChange(on ? field.value.filter((v) => v !== o.value) : [...field.value, o.value])}
+                        className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                          on
+                            ? "border-primary bg-primary-container font-semibold text-primary"
+                            : "border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:border-primary/60"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.primarySectors?.message && (
+                  <span className="px-1 text-xs font-medium text-error">{errors.primarySectors.message}</span>
+                )}
+              </div>
+            )}
+          />
+
+          {/* Short Bio */}
+          <div className="flex flex-col gap-1">
+            <Textarea
+              id="bio"
+              label="Short bio"
+              required
+              placeholder="What you do and who you serve"
+              rows={3}
+              error={errors.bio?.message}
+              maxLength={BIO_MAX_CHARS}
+              {...register("bio", {
+                required: "Add short bio",
+                maxLength: { value: BIO_MAX_CHARS, message: `Keep your bio under ${BIO_MAX_CHARS} characters.` },
+              })}
+            />
+            <span className={`px-1 text-xs font-medium ${bioChars > BIO_MAX_CHARS ? "text-error" : "text-on-surface-variant"}`}>
+              {bioChars} of {BIO_MAX_CHARS} characters
+            </span>
+          </div>
+
+          {/* LinkedIn + website sit here in the new UI for every role (same <role>.linkedinUrl / websiteUrl fields). */}
+          {roleKey && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                variant="ux"
+                id="profileLinkedin"
+                type="url"
+                label="LinkedIn profile (recommended)"
+                placeholder="https://linkedin.com/in/…"
+                error={errors[roleKey]?.linkedinUrl?.message}
+                {...register(`${roleKey}.linkedinUrl`, {
+                  validate: (v) => !v || /linkedin\.com\//i.test(v) || "Enter a valid LinkedIn URL.",
+                })}
+              />
+              <Input
+                variant="ux"
+                id="profileWebsite"
+                type="url"
+                label="Company website (recommended)"
+                placeholder="https://"
+                error={errors[roleKey]?.websiteUrl?.message}
+                {...register(`${roleKey}.websiteUrl`, {
+                  validate: (v) => !v || URL_REGEX.test(v) || "Enter a valid URL.",
+                })}
+              />
+            </div>
+          )}
+
+          {/* NOT IN NEW UI: everything below is from the previous UI and is kept (photo, intro video, locked account
+              panel, first/last name, country, continent). The block opens itself when one of them has an error. */}
+          <details
+            open={
+              aboutLegacyOpen ||
+              !!(errors.firstName || errors.lastName || errors.country || errors.contact || errors.countryCode)
+            }
+            onToggle={(ev) => setAboutLegacyOpen((ev.currentTarget as HTMLDetailsElement).open)}
+            className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-4"
+          >
+            <summary className="cursor-pointer text-sm font-semibold text-on-surface">
+              More about you (from the previous form, not in the new design)
+            </summary>
+            <div className="mt-4 flex flex-col gap-6">
+
+          {/* NOT IN NEW UI: profile photo (present in the previous UI, kept) */}
           {/* Profile picture */}
           <div className="flex flex-col gap-3">
             <span className="px-1 text-xs font-bold tracking-wide text-on-surface-variant">
@@ -700,6 +1032,7 @@ export default function CompleteProfilePage() {
             </div>
           </div>
 
+          {/* NOT IN NEW UI: short intro video (present in the previous UI, kept) */}
           {/* Short intro video — optional */}
           <Controller
             control={control}
@@ -713,6 +1046,7 @@ export default function CompleteProfilePage() {
             )}
           />
 
+          {/* NOT IN NEW UI: the large locked "Account Details" panel (new UI shows a one-line summary). Kept from the previous UI. */}
           {/* Account details — captured at registration, shown locked */}
           <div className="flex flex-col gap-3">
             <span className="px-1 text-xs font-bold tracking-wide text-on-surface-variant">
@@ -839,6 +1173,8 @@ export default function CompleteProfilePage() {
             </div>
           </div>
 
+          {/* NOT IN NEW UI: first/last name are asked on the Apply screen (kept here prefilled), and country/continent
+              replace the new UI's state/city. Both are from the previous UI. */}
           {/* Personal info */}
           <div className="flex flex-col gap-3">
             <span className="px-1 text-xs font-bold tracking-wide text-on-surface-variant">
@@ -854,7 +1190,7 @@ export default function CompleteProfilePage() {
                 error={errors.firstName?.message}
                 adornment={<Icon name="person" size={20} />}
                 adornmentClassName="text-primary opacity-0 transition-opacity group-focus-within:opacity-100"
-                {...register("firstName", { required: "First name is required." })}
+                {...register("firstName")}
               />
               <Input
                 variant="ux"
@@ -865,18 +1201,17 @@ export default function CompleteProfilePage() {
                 error={errors.lastName?.message}
                 adornment={<Icon name="person" size={20} />}
                 adornmentClassName="text-primary opacity-0 transition-opacity group-focus-within:opacity-100"
-                {...register("lastName", { required: "Last name is required." })}
+                {...register("lastName")}
               />
               <Controller
                 control={control}
                 name="country"
-                rules={{ required: "Country is required." }}
                 render={({ field }) => (
                   <Select
                     id="country"
                     label="Country"
-                    required
-                    placeholder="Select country"
+                    optional
+                    placeholder="Select country (defaults to India)"
                     options={COUNTRIES}
                     value={field.value}
                     onChange={(v) => {
@@ -905,77 +1240,44 @@ export default function CompleteProfilePage() {
             </div>
           </div>
 
-          {/* Primary Sector */}
-          <Controller
-            control={control}
-            name="primarySectors"
-            rules={{ validate: (v) => v.length > 0 || "Select at least one primary sector." }}
-            render={({ field }) => (
-              <Select
-                multiple
-                id="primarySectors"
-                label="Primary Sector"
-                required
-                placeholder="Select one or more sectors"
-                options={PRIMARY_SECTORS}
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.primarySectors?.message}
-              />
-            )}
-          />
-
-          {/* Role-specific fields */}
-          {role === "startup" && (
-            <StartupProfileFields control={control} register={register} errors={errors} />
-          )}
-          {role === "investor" && (
-            <InvestorProfileFields control={control} register={register} setValue={setValue} errors={errors} />
-          )}
-          {role === "b2b_enterprise" && (
-            <B2BProfileFields control={control} register={register} setValue={setValue} errors={errors} />
-          )}
-
-          {/* Short Bio */}
-          <div className="flex flex-col gap-1">
-            <Textarea
-              id="bio"
-              label="Short Bio"
-              optional
-              placeholder="Tell us a little bit about what you do..."
-              error={errors.bio?.message}
-              maxLength={BIO_MAX_CHARS}
-              {...register("bio", {
-                maxLength: { value: BIO_MAX_CHARS, message: `Keep your bio under ${BIO_MAX_CHARS} characters.` },
-              })}
-            />
-            <span className={`px-1 text-xs font-medium ${bioChars > BIO_MAX_CHARS ? "text-error" : "text-on-surface-variant"}`}>
-              {bioChars} / {BIO_MAX_CHARS} characters
-            </span>
+            </div>
+          </details>
           </div>
 
-          <div className="flex items-center gap-2 border-t border-outline/10 pt-4 sm:gap-3">
+          <div className={tab === "role" ? "flex flex-col gap-6" : "hidden"}>
+          <AccountSummary {...summary} />
+          {/* Role-specific fields */}
+          {role === "startup" && (
+            <StartupProfileFields control={control} register={register} errors={errors} hideIntent newUi />
+          )}
+          {role === "investor" && (
+            <InvestorProfileFields control={control} register={register} setValue={setValue} errors={errors} hideIntent newUi />
+          )}
+          {role === "b2b_enterprise" && (
+            <B2BProfileFields control={control} register={register} setValue={setValue} errors={errors} hideIntent newUi />
+          )}
+          </div>
+
+          <div className="foot">
             <button
+              className="btn secondary"
               type="button"
-              onClick={() => setPreviewData(getValues())}
-              className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-outline-variant/40 bg-surface-container px-3 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high sm:h-12 sm:flex-none sm:gap-2 sm:px-6 sm:text-base"
+              onClick={() => (tab === "about" ? router.push("/registration/business-check") : setTab("about"))}
             >
-              <Icon name="visibility" size={16} />
+              Back
+            </button>
+            <span className="spacer" />
+            {/* NOT IN NEW UI: Preview modal (the new UI previews on the Review screen). Kept from the previous UI. */}
+            <button className="btn secondary" type="button" onClick={() => setPreviewData(getValues())}>
               Preview
             </button>
             <button
-              type="submit"
+              className="btn primary"
+              type={tab === "about" ? "button" : "submit"}
+              onClick={tab === "about" ? () => setTab("role") : undefined}
               disabled={isSubmitting}
-              className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3 text-xs font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled sm:h-12 sm:gap-2 sm:px-5 sm:text-base"
             >
-              {isSubmitting ? (
-                <Loader size={18} />
-              ) : (
-                <>
-                  Save &amp; Continue
-                  <Icon name="chevron_right" size={16} />
-                </>
-              )}
+              {isSubmitting ? <span className="spin" /> : "Continue"}
             </button>
           </div>
         </form>
@@ -984,6 +1286,8 @@ export default function CompleteProfilePage() {
           {previewData && <ProfilePreview values={previewData} photoUrl={photo} role={role} />}
         </Modal>
       </div>
-    </main>
+        </main>
+      </div>
+    </div>
   );
 }
