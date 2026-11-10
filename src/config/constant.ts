@@ -111,6 +111,10 @@ export const API_ENDPOINTS = {
   // Returns profile summary + stat counters (connections, deal rooms, documents, etc).
   USER_DASHBOARD: `${USERS}/dashboard`,
 
+  // S10 Home screen widgets — top introductions, requests for you, deal rooms,
+  // monthly request counter, dummy Vouch data (GET).
+  USER_DASHBOARD_HOME: `${USERS}/dashboard/home`,
+
   // Fetch admin dashboard KPIs — user counts, KYC pipeline, recent activity (GET).
   ADMIN_DASHBOARD: `${ADMIN}/dashboard`,
 

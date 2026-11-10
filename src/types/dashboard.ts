@@ -1,5 +1,9 @@
 // src/types/dashboard.ts
 
+import type { ExploreMatch } from "./api.types";
+import type { ConnectionRequest } from "./api.types";
+import type { DealRoom } from "@/components/dashboard/deal-room/types";
+
 export interface UserDashboardData {
   profile?: {
     firstName: string;
@@ -19,6 +23,39 @@ export interface UserDashboardData {
     profileViews: number;
     watchlistCount: number;
   };
+}
+
+/** Dummy Vouch/Referral data — no backing model yet (FRD §3.7 not built). */
+export interface VouchWidgetData {
+  vouchCode: string;
+  totalVouched: number;
+  pendingInvites: number;
+  freeMonthsEarned: number;
+  recentVouches: { name: string; organizationName: string; status: string }[];
+}
+
+/** S10 Home screen widget set (GET /users/dashboard/home). */
+export interface HomeDashboardData {
+  /** Count of candidates the matching engine currently returns (capped at its own
+   *  limit) — "Introductions waiting" stat card. */
+  introductionsWaitingCount: number;
+  topIntroductions: ExploreMatch[];
+  requestsForYou: ConnectionRequest[];
+  dealRooms: DealRoom[];
+  monthlyRequests: {
+    sent: number;
+    limit: number;
+    remaining: number;
+  };
+  /** Discovery-trial status. `hasActiveSubscription` is `null` when the backend
+   *  couldn't determine it (e.g. the matching lookup failed) — treat that the same
+   *  as "subscribed" for banner purposes, never as "on trial". `trialDaysRemaining`
+   *  is only populated when `hasActiveSubscription` is confirmed `false`. */
+  membership: {
+    hasActiveSubscription: boolean | null;
+    trialDaysRemaining: number | null;
+  };
+  vouch: VouchWidgetData;
 }
 
 export interface AdminDashboardData {

@@ -33,7 +33,7 @@ import type {
 } from "@/components/dashboard/deal-room/types";
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
-interface RawRoom {
+export interface RawRoom {
   // deal_room_id is a UUID string (deal_room.id was already UUID before this migration).
   deal_room_id: number | string;
   title: string | null;
@@ -124,7 +124,9 @@ function readDownloadAllowed(raw: Record<string, unknown>): boolean {
 }
 
 /** Build a DealRoom from a flat row, picking the counterparty relative to the current user. */
-function toDealRoom(raw: RawRoom): DealRoom {
+/** Exported for the Home screen's "Deal rooms" widget, which gets its rows
+ *  pre-fetched inline on the dashboard/home response. */
+export function toDealRoom(raw: RawRoom): DealRoom {
   const me = getCurrentUserId();
   // Both me and raw.*_user_id are now UUID strings — strict equality works correctly.
   const iAmRequester = me != null && me === raw.requester_user_id;
