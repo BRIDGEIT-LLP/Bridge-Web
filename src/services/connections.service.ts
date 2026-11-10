@@ -30,7 +30,7 @@ export async function sendConnectionRequest(
 }
 
 /** Raw connection row as returned by GET /connections/{direction}. */
-interface RawConnection {
+export interface RawConnection {
   connection_id?: number | string;
   connection_message?: string;
   product_service_details?: string;
@@ -51,8 +51,10 @@ interface RawConnection {
   recipient_profile_photo?: string | null;
 }
 
-/** Normalize one raw backend row into the UI's ConnectionRequest. */
-function toConnectionRequest(raw: RawConnection, direction: ConnectionDirection): ConnectionRequest {
+/** Normalize one raw backend row into the UI's ConnectionRequest. Exported for the
+ *  Home screen's "Requests for you" widget, which gets its rows pre-fetched inline
+ *  on the dashboard/home response rather than calling `fetchConnections` itself. */
+export function toConnectionRequest(raw: RawConnection, direction: ConnectionDirection): ConnectionRequest {
   // Show the OTHER party: recipient for sent, requester for received.
   const other =
     direction === "sent"
