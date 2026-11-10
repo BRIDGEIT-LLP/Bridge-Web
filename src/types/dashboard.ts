@@ -47,10 +47,12 @@ export interface HomeDashboardData {
     limit: number;
     remaining: number;
   };
-  /** Discovery-trial status — `trialDaysRemaining` is null once the user has an
-   *  active (paid) subscription. */
+  /** Discovery-trial status. `hasActiveSubscription` is `null` when the backend
+   *  couldn't determine it (e.g. the matching lookup failed) — treat that the same
+   *  as "subscribed" for banner purposes, never as "on trial". `trialDaysRemaining`
+   *  is only populated when `hasActiveSubscription` is confirmed `false`. */
   membership: {
-    hasActiveSubscription: boolean;
+    hasActiveSubscription: boolean | null;
     trialDaysRemaining: number | null;
   };
   vouch: VouchWidgetData;

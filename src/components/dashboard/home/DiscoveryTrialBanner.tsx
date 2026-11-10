@@ -8,7 +8,10 @@ import type { HomeDashboardData } from "@/types/dashboard";
  *  (i.e. hasn't opted into a paid membership yet) — mirrors the prototype's
  *  "You're on the Discovery trial, N days left..." messaging. */
 export function DiscoveryTrialBanner({ membership }: { membership: HomeDashboardData["membership"] }) {
-  if (membership.hasActiveSubscription) {
+  // `false` is the only value that means "confirmed on the free trial" — `true` and
+  // `null` (status unknown) must both suppress the banner, so a lookup failure never
+  // tells a paying member they're on trial.
+  if (membership.hasActiveSubscription !== false) {
     return null;
   }
 
