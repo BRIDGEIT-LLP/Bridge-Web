@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { Loader } from "@/components/common/loader";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
@@ -31,6 +33,12 @@ interface OtpVerifyCardProps {
    * the login-MFA screen opts into the flat UX-proposal button via this prop.
    */
   continueButtonClassName?: string;
+  /**
+   * "prototype" renders the member sign-in code step from the design prototype: a narrow
+   * card with a single numeric "Code" field and a "Verify and sign in" button (explicit
+   * click, no auto-verify). Default keeps the OTP-box layout used by password reset.
+   */
+  variant?: "default" | "prototype";
 }
 
 const DEFAULT_CONTINUE_BUTTON_CLASSNAME =
@@ -52,7 +60,9 @@ export function OtpVerifyCard({
   onVerify,
   onResend,
   continueButtonClassName = DEFAULT_CONTINUE_BUTTON_CLASSNAME,
+  variant = "default",
 }: OtpVerifyCardProps) {
+  const [code, setCode] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -67,7 +77,15 @@ export function OtpVerifyCard({
       setMessage(res?.message ?? null);
       setVerified(true);
     } catch (err) {
-      setError((err as ApiError).message ?? "Verification failed. Please try again.");
+      const apiErr = err as ApiError;
+      // Member sign-in: a 401 here means there is no valid pre-MFA session (the account
+      // doesn't exist, or the session lapsed). The backend deliberately doesn't say which,
+      // so show the same line as a wrong code instead of "Unauthorized: No access token".
+      setError(
+        variant === "prototype" && apiErr.status === 401
+          ? "That code doesn’t match. Try again."
+          : apiErr.message ?? "Verification failed. Please try again."
+      );
     } finally {
       setVerifying(false);
     }
@@ -83,8 +101,76 @@ export function OtpVerifyCard({
   const handleResend = async () => {
     await onResend();
     setOtp(Array(OTP_LENGTH).fill(""));
+    setCode("");
     setError(null);
   };
+
+  if (variant === "prototype") {
+    const submit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (verified || verifying) return;
+      if (code.length !== OTP_LENGTH) {
+        setError("That code doesn’t match. Try again.");
+        return;
+      }
+      verify(code);
+    };
+
+    return (
+      <div className="min-h-full bg-[#F6F8FA] px-4 py-8 sm:px-6 sm:py-10">
+        <form
+          onSubmit={submit}
+          noValidate
+          className="mx-auto flex w-full max-w-[470px] flex-col gap-[18px] rounded-[14px] border border-[#E3E8EE] bg-white p-[22px_18px] shadow-[0_10px_30px_rgba(26,31,43,.08)] sm:rounded-2xl sm:p-8"
+        >
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1.5 self-start py-0.5 text-[13px] font-semibold text-[#1A1F2B] hover:text-[#0C56D0]"
+          >
+            <Icon name="chevron_left" size={14} />
+            {backLabel}
+          </Link>
+
+          <div>
+            <h2 className="font-headline text-[22px] font-bold tracking-[-0.01em] text-[#1A1F2B]">{title}</h2>
+            <p className="mt-1 text-[13px] text-[#5B6472]">{subtitle}</p>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="siCode" className="text-[12.5px] font-semibold text-[#1A1F2B]">Code</label>
+              {!verified && <ResendControl onResend={handleResend} />}
+            </div>
+            <input
+              id="siCode"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH));
+                setError(null);
+              }}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={OTP_LENGTH}
+              placeholder="1234"
+              className={`min-h-[42px] w-full rounded-lg border bg-white px-3 py-2.5 text-sm leading-[1.4] text-[#1A1F2B] placeholder:text-[#8A93A0] hover:border-[#B4BDC9] focus:border-[#0C56D0] focus:outline-none focus:ring-[3px] focus:ring-[#EAF1FC] ${
+                error ? "border-[#9F403D]" : "border-[#CFD6DF]"
+              }`}
+            />
+            {error && <p className="text-xs text-[#9F403D]">{error}</p>}
+            {verified && <p className="text-xs font-semibold text-[#1F7A4D]">{message ?? "OTP Verified"}</p>}
+          </div>
+
+          <button
+            type="submit"
+            disabled={verified || verifying}
+            className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg bg-[#0C56D0] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[#0A49B0] active:bg-[#083C92] disabled:cursor-not-allowed disabled:bg-[#A8BFE8]"
+          >
+            {verifying ? <Loader size={18} /> : "Verify and sign in"}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
