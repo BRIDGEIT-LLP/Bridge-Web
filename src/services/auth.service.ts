@@ -10,6 +10,8 @@ import type {
   VerifyCinResponse,
   LoginPayload,
   LoginResponse,
+  LoginOtpPayload,
+  LoginOtpResponse,
   SelectChannelPayload,
   SelectChannelResponse,
   VerifyMfaOtpPayload,
@@ -110,6 +112,17 @@ export async function verifyCin(payload: VerifyCinPayload): Promise<VerifyCinRes
  */
 export async function loginUser(payload: LoginPayload, portal: Portal = "user"): Promise<LoginResponse> {
   const { data } = await api.post<LoginResponse>(AUTH_BY_PORTAL[portal].LOGIN, payload);
+  assertNotLegacyTokenResponse(data.data);
+  return data;
+}
+
+/**
+ * One-time-code login (user portal only): send an email or mobile number; the backend
+ * sets the pre-MFA cookie and sends the code. The code is then verified with
+ * `verifyMfaOtp`, exactly as after a password login.
+ */
+export async function loginWithOtp(payload: LoginOtpPayload): Promise<LoginOtpResponse> {
+  const { data } = await api.post<LoginOtpResponse>(API_ENDPOINTS.LOGIN_OTP, payload);
   assertNotLegacyTokenResponse(data.data);
   return data;
 }

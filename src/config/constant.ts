@@ -41,6 +41,7 @@ export const API_ENDPOINTS = {
   VERIFY_CIN: `${AUTH}/verify-cin`,
   // TODO: replace with the real login path from the curl.
   LOGIN: `${AUTH}/login`,
+  LOGIN_OTP: `${AUTH}/login/otp`,
   // Login MFA: client sends the chosen channel; backend triggers the OTP send.
   MFA_SELECT_CHANNEL: `${AUTH}/mfa/trigger-otp`,
   // Login MFA: verify the OTP the user entered for the chosen channel.

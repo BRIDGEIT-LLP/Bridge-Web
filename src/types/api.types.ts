@@ -93,6 +93,31 @@ export interface KycRejectionWarning {
  * the route the backend wants the client to land on (e.g. the next pending
  * onboarding step or the home dashboard).
  */
+/** One-time-code login: `identifier` is an email or a national mobile number. */
+export interface LoginOtpPayload {
+  identifier: string;
+}
+
+/**
+ * Response from POST /auth/login/otp. The message is identical whether or not the
+ * account exists (the backend does not reveal registered accounts), so the client
+ * always advances to the code step; an unknown account simply fails at verify.
+ */
+export interface LoginOtpResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    /** Channel the code was sent over (derived from what the user typed). */
+    channel?: "EMAIL" | "PHONE";
+    /** The identifier the user typed, masked for display. */
+    maskedDestination?: string;
+    role?: string;
+    maskedMobile?: string;
+    maskedEmail?: string;
+    kycRejection?: KycRejectionWarning;
+  };
+}
+
 export interface LoginResponse {
   success?: boolean;
   message?: string;

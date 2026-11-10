@@ -171,14 +171,23 @@ export function VerifyOtpScreen({
   return (
     <>
       <OtpVerifyCard
-        title={`Verify your ${isPhone ? "mobile" : "email"}`}
+        variant={portal === "user" ? "prototype" : "default"}
+        title={portal === "user" ? "Enter your code" : `Verify your ${isPhone ? "mobile" : "email"}`}
         subtitle={
-          <>
-            We&apos;ve sent a {OTP_LENGTH}-digit code to your{" "}
-            {isPhone ? "mobile phone" : "email"} {maskedTarget}.
-          </>
+          portal === "user" ? (
+            <>
+              For your security we sent a {OTP_LENGTH} digit code to {maskedTarget}.
+            </>
+          ) : (
+            <>
+              We&apos;ve sent a {OTP_LENGTH}-digit code to your{" "}
+              {isPhone ? "mobile phone" : "email"} {maskedTarget}.
+            </>
+          )
         }
-        backHref={`${basePath}/select-channel`}
+        // The user portal skips the channel screen (code goes straight to the chosen
+        // channel), so "back" returns to sign-in; staff portals still have the channel step.
+        backHref={portal === "user" ? basePath : `${basePath}/select-channel`}
         channelIcon={isPhone ? "smartphone" : "mail"}
         channelLabel={isPhone ? "Mobile OTP" : "Email OTP"}
         onVerify={handleVerify}
