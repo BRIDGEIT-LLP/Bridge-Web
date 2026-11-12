@@ -111,8 +111,11 @@ export function roleSection(
       rows: [
         { label: "Industry Sectors", value: optLabels(INDUSTRY_SECTORS, s.industrySectors), full: true },
         { label: "Funding Stage", value: optLabel(FUNDING_STAGES, s.fundingStage) },
-        { label: "Raising", value: s.raisingCr ? `₹ ${s.raisingCr} Cr` : moneyRange(s.fundingCurrency, s.fundingMin, s.fundingMax) },
         { label: "Team Size", value: optLabel(TEAM_SIZE_RANGES, s.teamSize) },
+        { label: "Raising", value: s.raisingCr ? `₹ ${s.raisingCr} Cr` : moneyRange(s.fundingCurrency, s.fundingMin, s.fundingMax) },
+        { label: "Year of Incorporation", value: s.yearOfIncorporation ?? "" },
+        { label: "Funding Raised So Far", value: s.fundsRaised ?? "" },
+        { label: "Co-founders", value: s.coFounders ?? "", full: true },
         { label: "Intent", value: optLabel(INTENT_OPTIONS, s.intent) },
         {
           label: "Founders",
@@ -151,8 +154,9 @@ export function roleSection(
     return {
       title: "Investor Details",
       rows: [
-        { label: "Sector Preferences", value: optLabels(INDUSTRY_SECTORS, inv.sectorPreferences), full: true },
+        { label: "Investor Type", value: optLabel(INVESTOR_TYPES, inv.investorType) },
         { label: "Investment Stages", value: optLabels(INVESTMENT_STAGES, inv.investmentStages), full: true },
+        { label: "Sector Preferences", value: optLabels(INDUSTRY_SECTORS, inv.sectorPreferences), full: true },
         {
           label: "Ticket Size",
           value:
@@ -160,11 +164,10 @@ export function roleSection(
               ? `₹ ${inv.ticketMinCr || "?"} – ${inv.ticketMaxCr || "?"} Cr`
               : moneyRange(inv.ticketCurrency, inv.ticketMin, inv.ticketMax),
         },
-        { label: "Investor Type", value: optLabel(INVESTOR_TYPES, inv.investorType) },
         { label: "Primary Intent", value: optLabel(PRIMARY_INTENT_OPTIONS, inv.primaryIntent) },
-        { label: "Number of Investments", value: inv.numberOfInvestments },
-        { label: "Where you invest", value: optLabels(INVESTOR_GEOGRAPHY_REGIONS, inv.geoCountries), full: true },
         { label: "Investment Thesis", value: inv.investmentThesis, full: true },
+        { label: "Where you invest", value: optLabels(INVESTOR_GEOGRAPHY_REGIONS, inv.geoCountries), full: true },
+        { label: "Number of Investments", value: inv.numberOfInvestments },
         { label: "Portfolio Overview", value: inv.portfolioOverview, full: true },
         { label: "Address", value: inv.address, full: true },
         { label: "Website", value: inv.websiteUrl },
@@ -178,19 +181,19 @@ export function roleSection(
     return {
       title: "Business Details",
       rows: [
-        { label: "Business Name", value: b.businessName },
-        { label: "Sector", value: optLabel(SECTOR_OPTIONS, b.sector) },
+        // Business name and Sector are shown under Account / About you on the review, so they are not repeated here.
         { label: "Sub-Sector", value: optLabel(subSectorOptions(b.sector), b.subSector) },
         { label: "Industry Vertical", value: optLabel(verticalOptions(b.sector, b.subSector), b.industryVertical) },
         // { label: "Business Type", value: optLabel(BUSINESS_TYPES, b.businessType) },
-        { label: "Min Order Quantity", value: b.moq },
-        { label: "Revenue Band", value: optLabel(REVENUE_BANDS, b.revenueBand) },
+        { label: "Annual Revenue", value: optLabel(REVENUE_BANDS, b.revenueBand) },
         { label: "Years in Operation", value: b.yearsInOperation },
+        { label: "Min Order Quantity", value: b.moq },
         { label: "Export Readiness", value: optLabel(EXPORT_READINESS, b.exportReadiness) },
         { label: "Business Intent", value: optLabel(BUSINESS_INTENTS, b.businessIntent) },
         { label: "Where you sell", value: optLabels(B2B_GEOGRAPHY_REGIONS, b.geoCountries), full: true },
         { label: "Products / Services", value: b.productsServices, full: true },
-        { label: "Business Requirements", value: b.businessRequirements, full: true },
+        { label: "What You Need", value: b.businessRequirements, full: true },
+        { label: "Operational Capacity", value: b.operationalCapacity ?? "", full: true },
         { label: "Address", value: b.address, full: true },
         { label: "Website", value: b.websiteUrl },
         { label: "LinkedIn", value: b.linkedinUrl },

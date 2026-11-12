@@ -75,6 +75,8 @@ export function DocumentUploadCard({
   const [s3Keys, setS3Keys] = useState<Record<string, string>>({});
   // Slots whose scan is in flight (drives the loader).
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  // Upload progress (0–100) per slot while the file goes up.
+  const [progress, setProgress] = useState<Record<string, number>>({});
   // Object URLs for image previews, kept so we can revoke them.
   const [previews, setPreviews] = useState<Record<string, string>>({});
   // Per-slot rejection / scan-failure message.
@@ -173,11 +175,14 @@ export function DocumentUploadCard({
 
     // Scan + upload.
     setUploading((prev) => ({ ...prev, [key]: true }));
+    setProgress((prev) => ({ ...prev, [key]: 0 }));
     try {
       const fn =
         scanType === "image" || (scanType === "auto" && file.type.startsWith("image/")) ? scanImage : scanDocument;
       const side = slots.find((s) => s.key === key)?.side;
-      const { s3Key } = await fn(file, { docType, side });
+      const { s3Key } = await fn(file, { docType, side }, (pct) => {
+        if (filesRef.current[key] === file) setProgress((prev) => ({ ...prev, [key]: pct }));
+      });
       // Bail if the slot's file changed/was removed while scanning.
       if (filesRef.current[key] !== file) return;
       const updatedKeys = { ...keysRef.current, [key]: s3Key };
@@ -275,8 +280,24 @@ export function DocumentUploadCard({
               body = (
                 <div className="tstate uploading">
                   <strong>{slot.label}</strong>
-                  <span className="tmeta">{file.name} · Scanning…</span>
-                  <div className="bar"><span /></div>
+                  <span className="tmeta">
+                    {file.name} · {(progress[slot.key] ?? 0) < 100 ? `Uploading ${progress[slot.key] ?? 0}%` : "Scanning…"}
+                  </span>
+                  <div
+                    className="bar"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progress[slot.key] ?? 0}
+                  >
+                    <span
+                      style={
+                        (progress[slot.key] ?? 0) < 100
+                          ? { width: `${progress[slot.key] ?? 0}%`, animation: "none", transition: "width .2s ease" }
+                          : undefined
+                      }
+                    />
+                  </div>
                 </div>
               );
             } else {

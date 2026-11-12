@@ -568,6 +568,13 @@ export default function CompleteProfilePage() {
   // New UI splits the profile into "About you" and a role-specific tab. Both stay mounted
   // (hidden) so react-hook-form keeps every field registered and validates the whole form.
   const [tab, setTab] = useState<"about" | "role">("about");
+  // Review's Edit link for the role section opens this page on that tab (?tab=role).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "role") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTab("role");
+    }
+  }, []);
 
   const {
     register,
