@@ -24,7 +24,8 @@ async function scan(
   url: string,
   field: "image" | "document",
   file: File,
-  meta: ScanMeta
+  meta: ScanMeta,
+  onProgress?: (percent: number) => void
 ): Promise<ScanResult> {
   const form = new FormData();
   form.append(field, file);
@@ -32,17 +33,21 @@ async function scan(
   if (meta.side) form.append("side", meta.side);
   const { data } = await api.post<{ data: ScanResult }>(url, form, {
     headers: { "Content-Type": undefined },
+    // 0–100 while the bytes go up (the server-side scan runs after that).
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+    },
   });
   return data.data;
 }
 
 /** Scan + upload a PNG/JPEG image (Aadhaar / PAN). */
-export const scanImage = (file: File, meta: ScanMeta): Promise<ScanResult> =>
-  scan(API_ENDPOINTS.SCAN_IMG, "image", file, meta);
+export const scanImage = (file: File, meta: ScanMeta, onProgress?: (percent: number) => void): Promise<ScanResult> =>
+  scan(API_ENDPOINTS.SCAN_IMG, "image", file, meta, onProgress);
 
 /** Scan + upload a PDF document (incorporation certificate, pitch deck, …). */
-export const scanDocument = (file: File, meta: ScanMeta): Promise<ScanResult> =>
-  scan(API_ENDPOINTS.SCAN_DOCUMENT, "document", file, meta);
+export const scanDocument = (file: File, meta: ScanMeta, onProgress?: (percent: number) => void): Promise<ScanResult> =>
+  scan(API_ENDPOINTS.SCAN_DOCUMENT, "document", file, meta, onProgress);
 
 /** Accepted intro-video formats and size cap (mirrors the backend `videoUpload`). */
 export const INTRO_VIDEO_MIME_TYPES = ["video/mp4", "video/webm", "video/quicktime"];

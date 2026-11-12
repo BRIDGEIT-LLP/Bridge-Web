@@ -110,7 +110,25 @@ export default function ReviewPage() {
   const based = [fieldText("city") || show(data.city), fieldText("state") || show(data.state)].filter(Boolean).join(", ");
 
   // Role section: the labelled preview rows when this browser has the form values; otherwise the saved columns.
+  // Review wording for a few B2B columns (the shared labels are also used by the profile pages).
+  const REVIEW_LABELS: Record<string, string> = {
+    revenue_band: "Annual Revenue",
+    business_requirements: "What You Need",
+    operational_capacity_description: "Operational Capacity",
+  };
+  // Order of the "Your business" form, so the saved columns read in the same order as the screen.
+  const B2B_ORDER = [
+    "b2b_sub_sector", "industry_vertical", "revenue_band", "years_in_operation", "min_order_quantity", "export_rediness",
+    "b2b_geography_country", "b2b_geography_continent", "products_ervice_Offered", "business_requirements",
+    "operational_capacity_description",
+  ];
+  const orderIdx = (c: string) => {
+    const i = role === "b2b_enterprise" ? B2B_ORDER.indexOf(c) : -1;
+    return i < 0 ? 999 : i;
+  };
   const COMMON_COLUMNS = new Set([
+    // B2B sector is the "Sectors" row under About you; the business name is the Company row under Account.
+    ...(role === "b2b_enterprise" ? ["b2b_sector"] : []),
     "first_name", "last_name", "profile_photo", "intro_video", "short_bio", "country", "continent", "state", "city",
     "mobile_number", "country_code", "company_email", "primary_sector", "organization_name", "intent_note",
     "startup_intent", "investor_intent", "b2b_intent", "incorporation_certificate", "pitch_deck_certificate",
@@ -130,7 +148,8 @@ export default function ReviewPage() {
         .map((r) => [r.label, r.value] as Row)
     : (profileFields ?? [])
         .filter((f) => !COMMON_COLUMNS.has(f.columnName))
-        .map((f) => [fieldLabel(f.columnName, f.label), display(f.columnName, f.value)] as Row);
+        .sort((a, b) => orderIdx(a.columnName) - orderIdx(b.columnName))
+        .map((f) => [REVIEW_LABELS[f.columnName] ?? fieldLabel(f.columnName, f.label), display(f.columnName, f.value)] as Row);
 
   // Documents: what is stored, with a browser copy of the payload as the fallback.
   const kyc = data.kycPayload as SaveKycInfoPayload | undefined;
@@ -196,13 +215,12 @@ export default function ReviewPage() {
         ["Website", fieldText("company_website_url") || show(roleValues.websiteUrl)],
       ],
     },
-    { title: section?.title ?? "Details", href: "/registration/complete-profile", rows: roleRows },
+    { title: section?.title ?? "Details", href: "/registration/complete-profile?tab=role", rows: roleRows },
     { title: "Looking for", href: "/registration/intent", rows: [["Intent", intentLabel], ["Details", intentNote]] },
     {
       title: "Documents",
       href: "/registration/document-upload",
-      // The registered address is only shown for business owners; Founder / Investor reviews leave it out.
-      rows: role === "b2b_enterprise" ? [...docRows, ["Address", show(data.kycAddress)]] : docRows,
+      rows: docRows,
     },
   ];
 
