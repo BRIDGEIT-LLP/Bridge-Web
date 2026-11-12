@@ -20,6 +20,7 @@ import type {
   VerifyOtpResponse,
   ResendOtpPayload,
   ResendOtpResponse,
+  RegistrationStateResponse,
   SwitchRolePayload,
   SwitchRoleResponse,
   SwitchRoleDetailsResponse,
@@ -261,5 +262,29 @@ export async function verifyEmailOtp(payload: VerifyOtpPayload): Promise<VerifyO
  */
 export async function resendOtp(payload: ResendOtpPayload): Promise<ResendOtpResponse> {
   const { data } = await api.post<ResendOtpResponse>(API_ENDPOINTS.RESEND_OTP, payload);
+  return data;
+}
+
+/** Load the saved application so the registration screens can pick up where the user left off. */
+export async function getRegistrationState(): Promise<RegistrationStateResponse> {
+  const { data } = await api.get<RegistrationStateResponse>(API_ENDPOINTS.REGISTRATION_STATE);
+  return data;
+}
+
+/** The corrected contact details echoed back after an "Edit email / mobile" on the verify step. */
+export interface UpdateContactResponse {
+  success?: boolean;
+  message?: string;
+  data?: { email?: string; countryCode?: string; mobileNumber?: string };
+}
+
+/**
+ * Replace the email or mobile of a channel that is still unverified, then a fresh OTP is sent to the new value.
+ * Verified channels are refused by the backend.
+ */
+export async function updateContact(
+  payload: { channel: "EMAIL"; email: string } | { channel: "PHONE"; countryCode?: string; phoneNumber: string },
+): Promise<UpdateContactResponse> {
+  const { data } = await api.post<UpdateContactResponse>(API_ENDPOINTS.UPDATE_CONTACT, payload);
   return data;
 }

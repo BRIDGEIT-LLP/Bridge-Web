@@ -189,8 +189,8 @@ export interface StartupValues {
   linkedinUrl: string;
   intent: string;
   /**
-   * NEW UI ONLY — no backend column yet, so these are collected and kept in onboarding data
-   * but NOT sent to build-profile.
+   * NEW UI fields. yearOfIncorporation / fundsRaised / coFounders are saved to user.year_of_incorporation / funds_raised / co_founders;
+   * raisingCr is stored as the funding ask (funding_ask_amt_max, in rupees).
    */
   raisingCr?: string;
   yearOfIncorporation?: string;

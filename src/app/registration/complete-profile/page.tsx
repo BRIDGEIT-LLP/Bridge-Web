@@ -10,8 +10,6 @@ import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/modal/Modal";
-import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { AccountSummary } from "@/components/onboarding/AccountSummary";
@@ -239,6 +237,9 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
       use_of_funds: s.useOfFunds,
       team_size_min: team.min,
       team_size_max: team.max,
+      year_of_incorporation: toInt(s.yearOfIncorporation ?? ""),
+      funds_raised: s.fundsRaised?.trim() || undefined,
+      co_founders: s.coFounders?.trim() || undefined,
       incorporation_certificate: s.incorporationCert,
       pitch_deck_certificate: s.pitchDeck,
       business_description: s.businessDescription,
@@ -394,8 +395,15 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
     if (has("funding_stage")) startup.fundingStage = str("funding_stage");
     if (has("funding_currency")) startup.fundingCurrency = str("funding_currency");
     if (has("funding_ask_amt_min")) startup.fundingMin = str("funding_ask_amt_min");
-    if (has("funding_ask_amt_max")) startup.fundingMax = str("funding_ask_amt_max");
+    if (has("funding_ask_amt_max")) {
+      startup.fundingMax = str("funding_ask_amt_max");
+      // The new UI's single "Raising (₹ Cr)" is stored as the ask in rupees; show it back in ₹ Cr.
+      if (!has("funding_currency") || str("funding_currency") === "INR") startup.raisingCr = rupeesToCr(str("funding_ask_amt_max"));
+    }
     if (has("use_of_funds")) startup.useOfFunds = str("use_of_funds");
+    if (has("year_of_incorporation")) startup.yearOfIncorporation = str("year_of_incorporation");
+    if (has("funds_raised")) startup.fundsRaised = str("funds_raised");
+    if (has("co_founders")) startup.coFounders = str("co_founders");
     if (has("team_size_min")) {
       const bucket = teamSizeToBucket(toFloat(str("team_size_min")), toFloat(str("team_size_max")));
       if (bucket) startup.teamSize = bucket;
@@ -489,7 +497,8 @@ function buildFormDefaults(data: OnboardingData): CompleteProfileForm {
     role: (data.role as string) ?? "",
     gstNumber: (data.gstNumber as string) ?? "",
     cinNumber: (data.cinNumber as string) ?? "",
-    photo: "",
+    // Kept from a saved draft so the photo survives leaving the page (it is also restored from the server profile).
+    photo: (data.photo as string) ?? "",
     introVideo: (data.introVideo as string) ?? "",
     startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
     investor: { ...defaultInvestorValues, ...((data.investor as Partial<InvestorValues>) ?? {}) },
@@ -517,18 +526,31 @@ function hasValue(v: unknown): boolean {
  * optional 70/20/10; the real form's required rules are enforced by validation instead.)
  */
 function profileCompleteness(values: CompleteProfileForm, role: string): number {
-  const section =
-    role === "startup" ? values.startup : role === "investor" ? values.investor : role === "b2b_enterprise" ? values.b2b : {};
+  // Only the fields the new design shows count, so the ring reaches 100% when every visible field is filled.
+  // (It used to include the photo and country from the collapsed "previous form" block and every optional
+  // legacy field, which most members never open, so it could not reach 100%.)
+  const startup = values.startup;
+  const investor = values.investor;
+  const b2b = values.b2b;
+  const sectionLinks = role === "startup" ? startup : role === "investor" ? investor : role === "b2b_enterprise" ? b2b : undefined;
+  const roleLeaves: unknown[] =
+    role === "startup"
+      ? [startup?.fundingStage, startup?.raisingCr || startup?.fundingMax, startup?.useOfFunds, startup?.teamSize, startup?.yearOfIncorporation, startup?.fundsRaised]
+      : role === "investor"
+        ? [investor?.investorType, investor?.investmentStages, investor?.ticketMinCr || investor?.ticketMin, investor?.ticketMaxCr || investor?.ticketMax, investor?.geoCountries, investor?.investmentThesis, investor?.numberOfInvestments]
+        : role === "b2b_enterprise"
+          ? [b2b?.sector, b2b?.subSector, b2b?.revenueBand, b2b?.yearsInOperation, b2b?.moq, b2b?.exportReadiness, b2b?.geoCountries, b2b?.productsServices, b2b?.businessRequirements]
+          : [];
   const leaves: unknown[] = [
     values.firstName,
     values.lastName,
-    values.country,
+    values.state,
+    values.city,
     values.primarySectors,
     values.bio,
-    values.photo,
-    ...Object.entries(section ?? {})
-      .filter(([k]) => !/intent/i.test(k))
-      .map(([, v]) => v),
+    sectionLinks?.linkedinUrl,
+    sectionLinks?.websiteUrl,
+    ...roleLeaves,
   ];
   const filled = leaves.filter(hasValue).length;
   return Math.round((filled / leaves.length) * 100);
@@ -539,9 +561,6 @@ export default function CompleteProfilePage() {
   // Local object URL for the preview circle; the form value holds the uploaded s3Key.
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
-  // Snapshot of the form taken when Preview is clicked. Captured at click time
-  // (not in render) so it reflects the latest values from the uncontrolled inputs.
-  const [previewData, setPreviewData] = useState<CompleteProfileForm | null>(null);
 
   const router = useRouter();
   const [aboutLegacyOpen, setAboutLegacyOpen] = useState(false);
@@ -558,8 +577,10 @@ export default function CompleteProfilePage() {
     getValues,
     reset,
     trigger,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isValid },
   } = useForm<CompleteProfileForm>({
+    // onChange so `isValid` is live and Continue stays greyed out until the required fields are filled.
+    mode: "onChange",
     // Captured once at mount — see buildFormDefaults' doc comment for why the prefill
     // effect below re-derives this instead of trusting it stays in sync with `data`.
     defaultValues: buildFormDefaults(data),
@@ -569,7 +590,7 @@ export default function CompleteProfilePage() {
   const stepNo = stepNumber("profile");
 
   // Save as draft: whatever is filled in is written to the database (build-profile in draft mode, which does not
-  // complete the profile and records the step) and kept in the onboarding blob (localStorage) as well.
+  // complete the profile and records the step). Nothing is kept in the browser.
   const [savedAt, setSavedAt] = useState<number | null>(data.draftSavedAt ? Number(data.draftSavedAt) : null);
   const saveDraft = async () => {
     const v = getValues();
@@ -604,6 +625,18 @@ export default function CompleteProfilePage() {
 
   const allValues = useWatch({ control }) as CompleteProfileForm;
   const completeness = profileCompleteness(allValues, role);
+  // The required "About you" fields; Continue on that tab stays disabled until they are all filled.
+  const aboutComplete =
+    !!allValues?.state?.trim() &&
+    !!allValues?.city?.trim() &&
+    (role === "b2b_enterprise" || (allValues?.primarySectors?.length ?? 0) > 0) &&
+    !!allValues?.bio?.trim();
+
+  // Business owners choose one Sector (role tab); mirror it into primarySectors so it is saved on the profile.
+  const b2bSector = useWatch({ control, name: "b2b.sector" });
+  useEffect(() => {
+    if (role === "b2b_enterprise" && b2bSector) setValue("primarySectors", [b2bSector], { shouldValidate: true });
+  }, [role, b2bSector, setValue]);
   const roleTabLabel = role === "startup" ? "Your raise" : role === "investor" ? "How you invest" : "Your business";
   const bio = useWatch({ control, name: "bio" });
   const bioChars = (bio ?? "").length;
@@ -747,9 +780,9 @@ export default function CompleteProfilePage() {
     <div className="bp bp-profile">
       <div className="ob">
         <div className="ob-top">
-          <Link className="brand" href="/" aria-label="Bridge Platform home">
+          <div className="brand" aria-label="Bridge Platform">
             <BrandLockup />
-          </Link>
+          </div>
           <div className="hstack">
             {savedAt && (
               <p className="draft-note">
@@ -855,8 +888,9 @@ export default function CompleteProfilePage() {
             />
           </div>
 
-          {/* Sectors: same primarySectors field as before, shown as chips */}
-          <Controller
+          {/* Sectors: same primarySectors field as before, shown as chips. Business owners pick their Sector once, on
+              the next tab, so the chips are hidden for them (primarySectors is filled from that choice). */}
+          {role !== "b2b_enterprise" && <Controller
             control={control}
             name="primarySectors"
             rules={{ validate: (v) => v.length > 0 || "Select at least one primary sector." }}
@@ -888,7 +922,7 @@ export default function CompleteProfilePage() {
                 )}
               </div>
             )}
-          />
+          />}
 
           {/* Short Bio */}
           <div className="flex flex-col gap-1">
@@ -1267,24 +1301,19 @@ export default function CompleteProfilePage() {
               Back
             </button>
             <span className="spacer" />
-            {/* NOT IN NEW UI: Preview modal (the new UI previews on the Review screen). Kept from the previous UI. */}
-            <button className="btn secondary" type="button" onClick={() => setPreviewData(getValues())}>
-              Preview
+            <button className="btn secondary" type="button" onClick={() => void saveDraft()}>
+              Save as draft
             </button>
             <button
               className="btn primary"
               type={tab === "about" ? "button" : "submit"}
               onClick={tab === "about" ? () => setTab("role") : undefined}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (tab === "about" ? !aboutComplete : !isValid)}
             >
               {isSubmitting ? <span className="spin" /> : "Continue"}
             </button>
           </div>
         </form>
-
-        <Modal open={!!previewData} onClose={() => setPreviewData(null)} title="Profile Preview">
-          {previewData && <ProfilePreview values={previewData} photoUrl={photo} role={role} />}
-        </Modal>
       </div>
         </main>
       </div>

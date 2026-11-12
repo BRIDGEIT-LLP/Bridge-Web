@@ -19,7 +19,7 @@ import { PRIMARY_INTENT_OPTIONS } from "@/lib/investor-profile-options";
 import { BUSINESS_INTENTS } from "@/lib/b2b-profile-options";
 import { roleSection } from "@/components/onboarding/ProfilePreview";
 import { COUNTRIES } from "@/lib/countries";
-import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
+import { PRIMARY_SECTORS, SECTOR_OPTIONS } from "@/lib/b2b-profile-options";
 import type { CompleteProfileForm } from "@/components/onboarding/StartupProfileFields";
 import type { KycDocFile, KycRequirementsData, SaveKycInfoPayload } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -89,6 +89,10 @@ export default function ReviewPage() {
   };
   /** A stored value as its display name(s): option values are looked up, lists joined, founders by name. */
   const display = (column: string, v: unknown): string => {
+    // Money columns are stored in rupees; the form works in ₹ Cr, so show them the same way.
+    if (/^(ticket_size_amt_|funding_ask_amt_)(min|max)$/.test(column) && v !== "" && v !== null && v !== undefined && !Number.isNaN(Number(v))) {
+      return `₹ ${Number((Number(v) / 1e7).toFixed(4))} Cr`;
+    }
     const cfg = getFieldOptionConfig(column);
     const one = (x: unknown) => (cfg ? labelOf(cfg.options, x) : show(x));
     return Array.isArray(v) ? v.map((x) => (x && typeof x === "object" ? show([x]) : one(x))).filter(Boolean).join(", ") : one(v);
@@ -110,6 +114,8 @@ export default function ReviewPage() {
     "first_name", "last_name", "profile_photo", "intro_video", "short_bio", "country", "continent", "state", "city",
     "mobile_number", "country_code", "company_email", "primary_sector", "organization_name", "intent_note",
     "startup_intent", "investor_intent", "b2b_intent", "incorporation_certificate", "pitch_deck_certificate",
+    // LinkedIn / website are shown under "About you".
+    "linkedin_profile_url", "company_website_url",
   ]);
   const hasLocalRole = Object.keys(roleValues).length > 0;
   const roleRows: Row[] = hasLocalRole
@@ -120,7 +126,7 @@ export default function ReviewPage() {
           () => undefined
         )?.rows ?? []
       )
-        .filter((r) => !/intent/i.test(r.label))
+        .filter((r) => !/intent/i.test(r.label) && !/^(website|linkedin)$/i.test(r.label))
         .map((r) => [r.label, r.value] as Row)
     : (profileFields ?? [])
         .filter((f) => !COMMON_COLUMNS.has(f.columnName))
@@ -129,20 +135,27 @@ export default function ReviewPage() {
   // Documents: what is stored, with a browser copy of the payload as the fallback.
   const kyc = data.kycPayload as SaveKycInfoPayload | undefined;
   const aadhaarDoc = reqs?.documents.find((d) => d.document_type === "AADHAAR");
-  const aadhaar = aadhaarDoc?.number ?? String(data.aadhaarNumber ?? "");
-  const maskedAadhaar = aadhaar.length === 12 ? `XXXX XXXX ${aadhaar.slice(8)}` : aadhaar;
+  const aadhaar = aadhaarDoc?.number ?? "";
+  const maskedAadhaar =
+    aadhaar.length === 12 ? `XXXX XXXX ${aadhaar.slice(8)}` : data.aadhaarLast4 ? `XXXX XXXX ${String(data.aadhaarLast4)}` : aadhaar;
   const panNumber = biz?.pan_number || reqs?.documents.find((d) => d.document_type === "PAN")?.number || show(data.panNumber);
   const docRows: Row[] = reqs
     ? [
-        ...(aadhaarDoc ? ([["Aadhaar", maskedAadhaar]] as Row[]) : []),
+        ...(aadhaarDoc ? ([["Aadhaar number", maskedAadhaar]] as Row[]) : []),
+        // One row per file, so e.g. the Aadhaar front and back are listed separately.
         ...reqs.documents
           .filter((d) => d.uploaded)
-          .map((d) => [d.label, d.sides.map((s) => d.files[s]?.file_name).filter(Boolean).join(", ")] as Row),
+          .flatMap((d) =>
+            d.sides.length > 1
+              ? d.sides.map((s) => [`${d.label.replace(/ card$/i, "")}, ${s}`, d.files[s]?.file_name ?? ""] as Row)
+              : ([[d.label, d.sides.map((s) => d.files[s]?.file_name).filter(Boolean).join(", ")]] as Row[]),
+          ),
       ]
     : [
         ...(role === "b2b_enterprise" ? [] : ([
-          ["Aadhaar", maskedAadhaar],
-          ["Aadhaar files", [kyc?.AADHAAR?.front?.file_name, kyc?.AADHAAR?.back?.file_name].filter(Boolean).join(", ")],
+          ["Aadhaar number", maskedAadhaar],
+          ["Aadhaar, front", show(kyc?.AADHAAR?.front?.file_name)],
+          ["Aadhaar, back", show(kyc?.AADHAAR?.back?.file_name)],
         ] as Row[])),
         ["PAN", panNumber],
         ["PAN file", show(kyc?.PAN?.front?.file_name)],
@@ -154,7 +167,8 @@ export default function ReviewPage() {
   const sections: { title: string; href: string; rows: Row[] }[] = [
     {
       title: "Account",
-      href: "/registration",
+      // ?edit=1 keeps the draft and the session; without it this page starts a brand-new application.
+      href: "/registration?edit=1",
       rows: [
         ["Applying as", ROLE_LABELS[role] ?? role],
         ["Name", fullName],
@@ -176,8 +190,10 @@ export default function ReviewPage() {
       href: "/registration/complete-profile",
       rows: [
         ["Based in", based || (country ? labelOf(COUNTRIES, country) : "")],
-        ["Sectors", sectors.map((v) => labelOf(PRIMARY_SECTORS, v)).join(", ")],
+        ["Sectors", sectors.map((v) => labelOf(role === "b2b_enterprise" ? SECTOR_OPTIONS : PRIMARY_SECTORS, v)).join(", ")],
         ["Bio", fieldText("short_bio") || show(data.bio)],
+        ["LinkedIn", fieldText("linkedin_profile_url") || show(roleValues.linkedinUrl)],
+        ["Website", fieldText("company_website_url") || show(roleValues.websiteUrl)],
       ],
     },
     { title: section?.title ?? "Details", href: "/registration/complete-profile", rows: roleRows },
@@ -185,21 +201,38 @@ export default function ReviewPage() {
     {
       title: "Documents",
       href: "/registration/document-upload",
-      rows: [...docRows, ["Address", show(data.kycAddress)]],
+      // The registered address is only shown for business owners; Founder / Investor reviews leave it out.
+      rows: role === "b2b_enterprise" ? [...docRows, ["Address", show(data.kycAddress)]] : docRows,
     },
   ];
 
   // Same approximation the Your profile ring uses: share of filled shared fields plus the role section.
   const filled = (v: unknown) => (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && String(v).trim() !== "");
-  const leaves = profileFields
-    ? [
-        field("first_name"), field("last_name"), field("country"), field("primary_sector"), field("short_bio"), field("profile_photo"),
-        ...profileFields.filter((f) => !COMMON_COLUMNS.has(f.columnName)).map((f) => f.value),
-      ]
-    : [
-        data.firstName, data.lastName, data.country, data.primarySectors, data.bio, data.photo,
-        ...Object.entries(roleValues).filter(([k]) => !/intent/i.test(k)).map(([, v]) => v),
-      ];
+  // Same fields as the Profile step's ring (only what the new design shows), so the two agree and 100% is reachable.
+  const rv = roleValues as Record<string, unknown>;
+  const localRoleLeaves: unknown[] =
+    role === "startup"
+      ? [rv.fundingStage, rv.raisingCr || rv.fundingMax, rv.useOfFunds, rv.teamSize, rv.yearOfIncorporation, rv.fundsRaised]
+      : role === "investor"
+        ? [rv.investorType, rv.investmentStages, rv.ticketMinCr || rv.ticketMin, rv.ticketMaxCr || rv.ticketMax, rv.geoCountries, rv.investmentThesis, rv.numberOfInvestments]
+        : [rv.sector, rv.subSector, rv.revenueBand, rv.yearsInOperation, rv.moq, rv.exportReadiness, rv.geoCountries, rv.productsServices, rv.businessRequirements];
+  const serverRoleColumns =
+    role === "startup"
+      ? ["funding_stage", "funding_ask_amt_max", "use_of_funds", "team_size_min"]
+      : role === "investor"
+        ? ["investor_type", "prefrerred_investment_stage", "ticket_size_amt_min", "ticket_size_amt_max", "geographic_investment_preference", "investment_thesis", "number_of_investments_to_date"]
+        : ["b2b_sector", "b2b_sub_sector", "revenue_band", "years_in_operation", "min_order_quantity", "export_rediness", "b2b_geography_country", "products_ervice_Offered", "business_requirements"];
+  const leaves =
+    profileFields && !hasLocalRole
+      ? [
+          field("first_name"), field("last_name"), field("state"), field("city"), field("primary_sector"), field("short_bio"),
+          field("linkedin_profile_url"), field("company_website_url"),
+          ...serverRoleColumns.map((c) => field(c)),
+        ]
+      : [
+          data.firstName, data.lastName, data.state, data.city, data.primarySectors, data.bio, rv.linkedinUrl, rv.websiteUrl,
+          ...localRoleLeaves,
+        ];
   const pct = leaves.length ? Math.round((leaves.filter(filled).length / leaves.length) * 100) : 0;
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -258,9 +291,9 @@ export default function ReviewPage() {
     <div className="bp">
       <div className="ob">
         <div className="ob-top">
-          <Link className="brand" href="/" aria-label="Bridge Platform home">
+          <div className="brand" aria-label="Bridge Platform">
             <BrandLockup />
-          </Link>
+          </div>
           <button className="btn secondary sm" type="button" onClick={handleLogout} disabled={loggingOut}>
             {loggingOut ? "Logging out…" : "Log out"}
           </button>

@@ -291,9 +291,9 @@ export default function VerificationStatusPage() {
     <div className="bp">
       <div className="ob">
         <div className="ob-top">
-          <Link className="brand" href="/" aria-label="Bridge Platform home">
+          <div className="brand" aria-label="Bridge Platform">
             <BrandLockup />
-          </Link>
+          </div>
           <button className="btn secondary sm" type="button" onClick={handleLogout} disabled={loggingOut}>
             {loggingOut ? "Logging out…" : "Log out"}
           </button>

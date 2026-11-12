@@ -73,6 +73,7 @@ export default function DocumentUploadPage() {
   const [reqs, setReqs] = useState<KycRequirementsData | null>(null);
   const [loadError, setLoadError] = useState("");
   const [replacing, setReplacing] = useState<Record<string, boolean>>({});
+  const [aadhaarFocus, setAadhaarFocus] = useState(false);
 
   const {
     control,
@@ -85,8 +86,10 @@ export default function DocumentUploadPage() {
     mode: "onChange",
     defaultValues: {
       docs: {},
-      aadhaarNumber: String(data.aadhaarNumber ?? ""),
+      // The full Aadhaar number is never kept in the browser: it comes back from the server record on load().
+      aadhaarNumber: "",
       panNumber: String(data.panNumber ?? ""),
+      // Restored from the database (see load() below and the registration-state reload).
       address: String(data.kycAddress ?? ""),
       consent: !!data.kycConsent,
     },
@@ -101,6 +104,9 @@ export default function DocumentUploadPage() {
         const pan = res.documents.find((d) => d.document_type === "PAN")?.number;
         if (aadhaar) setValue("aadhaarNumber", aadhaar);
         if (pan) setValue("panNumber", pan);
+        // The saved address / consent fill in only what is still empty, so nothing just typed is overwritten.
+        if (res.registered_address && !getValues("address")) setValue("address", res.registered_address);
+        if (res.kyc_consent && !getValues("consent")) setValue("consent", true);
       })
       .catch((err) => setLoadError((err as ApiError).message ?? "Could not load the documents you need to upload."));
   };
@@ -110,8 +116,17 @@ export default function DocumentUploadPage() {
   const docOf = (type: string) => docs.find((d) => d.document_type === type);
   const aadhaarDoc = docOf("AADHAAR");
   const panDoc = docOf("PAN");
-  // The PAN number comes from the Business step; only ask for it when the server has none.
-  const askPanNumber = !!panDoc && !PAN_REGEX.test((panDoc.number ?? "").toUpperCase());
+  const isB2B = String(data.role ?? "") === "b2b_enterprise";
+  // A business owner's company PAN is the one inside the verified GSTIN (characters 3-12), saved on the Business step.
+  const gstPan = String(data.gstNumber ?? "").slice(2, 12).toUpperCase();
+  const b2bPan = PAN_REGEX.test((panDoc?.number ?? "").toUpperCase())
+    ? String(panDoc?.number).toUpperCase()
+    : PAN_REGEX.test(gstPan)
+      ? gstPan
+      : "";
+  // The PAN number comes from the Business step; only ask for it when the server has none. Never for business owners,
+  // whose PAN is derived from the GSTIN.
+  const askPanNumber = !isB2B && !!panDoc && !PAN_REGEX.test((panDoc.number ?? "").toUpperCase());
 
   const [picked, aadhaarNumber, panNumber, address, consent] = useWatch({
     control,
@@ -134,7 +149,7 @@ export default function DocumentUploadPage() {
 
   const missing: string[] = [];
   if (aadhaarDoc && !AADHAAR_REGEX.test(aadhaarNumber ?? "")) missing.push("Aadhaar number");
-  if (panDoc && !PAN_REGEX.test((panNumber ?? "").toUpperCase())) missing.push("PAN number");
+  if (askPanNumber && !PAN_REGEX.test((panNumber ?? "").toUpperCase())) missing.push("PAN number");
   if ((address ?? "").trim().length < 10) missing.push("address");
   for (const t of tiles) {
     const has = keepsExisting(t.doc) || !!picked?.[t.doc.document_type]?.[t.side];
@@ -170,7 +185,8 @@ export default function DocumentUploadPage() {
       if (d.document_type === "AADHAAR" && files.back) {
         kycPayload.AADHAAR = { number: values.aadhaarNumber, front: files.front, back: files.back };
       } else if (d.document_type === "PAN") {
-        kycPayload.PAN = { number: values.panNumber.toUpperCase(), front: files.front };
+        const panNo = isB2B ? b2bPan : values.panNumber.toUpperCase();
+        kycPayload.PAN = { ...(panNo ? { number: panNo } : {}), front: files.front };
       } else if (d.document_type === "GST_CERTIFICATE") {
         kycPayload.GST_CERTIFICATE = { front: files.front };
       } else if (d.document_type === "INCORPORATION_CERTIFICATE") {
@@ -181,13 +197,13 @@ export default function DocumentUploadPage() {
     }
     // Store the documents and numbers in the database as a draft; Review submits them for verification.
     try {
-      await saveKycInfo(kycPayload, "review");
+      await saveKycInfo({ ...kycPayload, registered_address: values.address, kyc_consent: values.consent }, "review");
     } catch (err) {
       toast.error((err as ApiError).message ?? "Couldn't save your documents. Please try again.");
       return;
     }
     setData({
-      aadhaarNumber: aadhaarDoc ? values.aadhaarNumber : "",
+      aadhaarLast4: aadhaarDoc ? values.aadhaarNumber.slice(-4) : "",
       panNumber: values.panNumber,
       kycAddress: values.address,
       kycConsent: values.consent,
@@ -199,7 +215,7 @@ export default function DocumentUploadPage() {
   /**
    * Save as draft: the documents and numbers that are there are written to the database (save-kyc-info in draft
    * mode: nothing is required and nothing is submitted for review), the step is recorded, and the typed numbers,
-   * address and consent are kept in the onboarding blob (localStorage), which has no database column yet.
+   * address and consent are saved with it too (company.kyc_address / kyc_consent). Nothing is kept in the browser.
    */
   const [savedAt, setSavedAt] = useState<number | null>(data.draftSavedAt ? Number(data.draftSavedAt) : null);
   const saveDraft = async () => {
@@ -212,7 +228,14 @@ export default function DocumentUploadPage() {
           const fresh = values.docs?.[d.document_type]?.[side];
           if (fresh) files[side] = toKycFile(fresh);
         }
-        const typed = d.document_type === "AADHAAR" ? values.aadhaarNumber : d.document_type === "PAN" ? values.panNumber.toUpperCase() : "";
+        const typed =
+          d.document_type === "AADHAAR"
+            ? values.aadhaarNumber
+            : d.document_type === "PAN"
+              ? isB2B
+                ? b2bPan
+                : values.panNumber.toUpperCase()
+              : "";
         const number = d.document_type === "AADHAAR" ? (AADHAAR_REGEX.test(typed) ? typed : "") : PAN_REGEX.test(typed) ? typed : "";
         if (!files.front && !files.back && !number) continue;
         (draftPayload as Record<string, unknown>)[d.document_type] = {
@@ -221,6 +244,9 @@ export default function DocumentUploadPage() {
           ...(files.back ? { back: files.back } : {}),
         };
       }
+      // The address and the consent tick are saved with the draft too, so they are there when the page is reopened.
+      draftPayload.registered_address = values.address ?? "";
+      draftPayload.kyc_consent = !!values.consent;
       try {
         await saveKycInfo(draftPayload, "documents");
       } catch (err) {
@@ -231,7 +257,7 @@ export default function DocumentUploadPage() {
     }
     const now = Date.now();
     setData({
-      aadhaarNumber: aadhaarDoc ? (aadhaarNumber ?? "") : "",
+      aadhaarLast4: aadhaarDoc ? (aadhaarNumber ?? "").slice(-4) : "",
       panNumber: panNumber ?? "",
       kycAddress: address ?? "",
       kycConsent: !!consent,
@@ -309,9 +335,9 @@ export default function DocumentUploadPage() {
     <div className="bp">
       <div className="ob">
         <div className="ob-top">
-          <Link className="brand" href="/" aria-label="Bridge Platform home">
+          <div className="brand" aria-label="Bridge Platform">
             <BrandLockup />
-          </Link>
+          </div>
           <div className="hstack">
             {savedAt && (
               <p className="draft-note">
@@ -371,18 +397,37 @@ export default function DocumentUploadPage() {
                 {aadhaarDoc && (
                   <div className={`field${errors.aadhaarNumber ? " has-error" : ""}`}>
                     <label htmlFor="aadhaarNumber">{aadhaarDoc.number_label ?? "Aadhaar number"}</label>
-                    <input
-                      id="aadhaarNumber"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      maxLength={12}
-                      placeholder="XXXX XXXX 9012"
-                      readOnly={!aadhaarDoc.number_editable}
-                      {...register("aadhaarNumber", {
+                    <Controller
+                      control={control}
+                      name="aadhaarNumber"
+                      rules={{
                         required: "Aadhaar number is required.",
                         pattern: { value: AADHAAR_REGEX, message: "Enter a valid 12-digit Aadhaar number." },
-                      })}
+                      }}
+                      render={({ field }) => {
+                        // Only the last 4 digits are displayed once the field is left; the full number is visible
+                        // just while it is being typed.
+                        const complete = AADHAAR_REGEX.test(field.value ?? "");
+                        const shown = !aadhaarFocus && complete ? `XXXX XXXX ${field.value.slice(-4)}` : (field.value ?? "");
+                        return (
+                          <input
+                            id="aadhaarNumber"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            maxLength={12}
+                            placeholder="XXXX XXXX 9012"
+                            readOnly={!aadhaarDoc.number_editable}
+                            value={shown}
+                            onFocus={() => setAadhaarFocus(true)}
+                            onBlur={() => {
+                              setAadhaarFocus(false);
+                              field.onBlur();
+                            }}
+                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                          />
+                        );
+                      }}
                     />
                     <p className="msg">{errors.aadhaarNumber?.message ?? "12 digits. Only the last 4 are shown after entry."}</p>
                   </div>

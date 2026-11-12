@@ -108,8 +108,15 @@ export function phoneErrorForDialCode(
 /** Min 8 chars with lowercase, uppercase, number and symbol. Still used for admin passwords. */
 export const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-/** Member registration rule from the new UI: min 8 chars with at least one number. */
-export const MEMBER_PASSWORD_REGEX = /^(?=.*\d).{8,}$/;
+/**
+ * Member password rule (registration and password reset): at least 8 characters with at least one uppercase
+ * letter, one number and one special character (any character that is not a letter, digit or space).
+ * Keep in step with `memberPassword` in Bridge-Server/src/validations/authValidation.js.
+ */
+export const MEMBER_PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/;
+
+/** What to tell the member when the password rule is not met. */
+export const MEMBER_PASSWORD_MESSAGE = "Use at least 8 characters with an uppercase letter, a number and a special character";
 
 /** 15-character GSTIN. */
 export const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;
