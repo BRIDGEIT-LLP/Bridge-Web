@@ -8,9 +8,9 @@ import { StepProgress } from "@/components/onboarding/StepProgress";
 import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
-import { verifyMobileOtp, verifyEmailOtp, resendOtp } from "@/services/auth.service";
+import { verifyMobileOtp, verifyEmailOtp, resendOtp, updateContact } from "@/services/auth.service";
 import { maskPhone, maskEmail } from "@/lib/mask";
-import { OTP_LENGTH } from "@/lib/validation";
+import { OTP_LENGTH, EMAIL_REGEX, phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 import type { ApiError } from "@/lib/axios";
 
 const RESEND_SECONDS = 60;
@@ -79,6 +79,51 @@ export function ResendControl({
   );
 }
 
+/** Inline "wrong number / wrong email" editor shown under a channel's header on the verify step. */
+function ContactEditor({
+  type,
+  label,
+  value,
+  onChange,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  type: "tel" | "email";
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
+      <label className="font-label text-xs font-bold text-on-surface-variant">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoFocus
+        className="h-10 w-full rounded-lg border border-outline-variant/40 bg-surface-container-lowest px-3 text-sm text-on-surface focus:border-primary"
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="rounded-lg bg-primary px-4 py-1.5 text-sm font-bold text-on-primary disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save & resend code"}
+        </button>
+        <button type="button" onClick={onCancel} disabled={saving} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-on-surface-variant hover:text-on-surface">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function VerifyAccountPage() {
   const { data, setData, goNext, isDataLoaded } = useOnboarding();
 
@@ -95,6 +140,65 @@ export default function VerifyAccountPage() {
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [mobileError, setMobileError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+
+  // "Wrong number? / Wrong email? Edit": inline editor for whichever channel is being corrected.
+  const [editing, setEditing] = useState<"mobile" | "email" | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [savingContact, setSavingContact] = useState(false);
+  // Bumped after a contact is changed so that channel's resend countdown starts over.
+  const [resendKey, setResendKey] = useState({ mobile: 0, email: 0 });
+
+  const startEdit = (kind: "mobile" | "email") => {
+    setEditing(kind);
+    setEditValue(kind === "mobile" ? String(data.contact ?? "") : String(data.email ?? ""));
+  };
+
+  const saveContact = async () => {
+    if (!editing || savingContact) return;
+    const kind = editing;
+    const value = editValue.trim();
+    if (kind === "email" && !EMAIL_REGEX.test(value)) {
+      toast.error("Enter an email like name@company.com");
+      return;
+    }
+    if (kind === "mobile") {
+      const err = phoneErrorForDialCode(String(data.countryCode ?? "") || "+91", value);
+      if (err) {
+        toast.error(err);
+        return;
+      }
+    }
+    setSavingContact(true);
+    try {
+      const res =
+        kind === "email"
+          ? await updateContact({ channel: "EMAIL", email: value })
+          : await updateContact({
+              channel: "PHONE",
+              countryCode: String(data.countryCode ?? "") || undefined,
+              phoneNumber: nationalDigits(value),
+            });
+      setData(
+        kind === "email"
+          ? { email: res.data?.email ?? value }
+          : { contact: res.data?.mobileNumber ?? nationalDigits(value) },
+      );
+      toast.success(res.message ?? (kind === "email" ? "We've sent a new code to your email." : "We've sent a new code to your mobile."));
+      if (kind === "email") {
+        setValue("emailOtp", Array(OTP_LENGTH).fill(""));
+        setEmailError(null);
+      } else {
+        setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
+        setMobileError(null);
+      }
+      setResendKey((k) => ({ ...k, [kind]: k[kind] + 1 }));
+      setEditing(null);
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Couldn't update your details. Please try again.");
+    } finally {
+      setSavingContact(false);
+    }
+  };
 
   const bothVerified = mobileVerified && emailVerified;
   const maskedMobile = `${String(data.countryCode ?? "")} ${maskPhone(String(data.contact ?? ""))}`.trim();
@@ -207,7 +311,9 @@ export default function VerifyAccountPage() {
       setMobileVerified(true);
     } catch (err) {
       toast.error((err as ApiError).message ?? "Verification failed. Please try again.");
-      setMobileError("Verification failed");
+      setMobileError((err as ApiError).message ?? "Verification failed");
+      // Clear the boxes so the member can type the code again.
+      setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
     } finally {
       setVerifyingMobile(false);
     }
@@ -222,7 +328,8 @@ export default function VerifyAccountPage() {
       setEmailVerified(true);
     } catch (err) {
       toast.error((err as ApiError).message ?? "Verification failed. Please try again.");
-      setEmailError("Verification failed");
+      setEmailError((err as ApiError).message ?? "Verification failed");
+      setValue("emailOtp", Array(OTP_LENGTH).fill(""));
     } finally {
       setVerifyingEmail(false);
     }
@@ -274,7 +381,8 @@ export default function VerifyAccountPage() {
         <StepProgress stepKey="verification" />
 
         <div className="rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
-          <FocusedHeader backHref="/registration" />
+          {/* ?edit=1 keeps the draft and the session instead of starting a brand-new application. */}
+          <FocusedHeader backHref="/registration?edit=1" />
 
           <div>
             <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
@@ -296,10 +404,22 @@ export default function VerifyAccountPage() {
                 </div>
                 {!mobileVerified && (
                   <span className="shrink-0 whitespace-nowrap text-xs font-medium text-on-surface-variant">
-                    Wrong number? <button type="button" className="font-bold text-primary hover:underline">Edit</button>
+                    Wrong number? <button type="button" onClick={() => startEdit("mobile")} className="font-bold text-primary hover:underline">Edit</button>
                   </span>
                 )}
               </div>
+
+              {editing === "mobile" && (
+                <ContactEditor
+                  type="tel"
+                  label="Mobile number"
+                  value={editValue}
+                  onChange={setEditValue}
+                  onSave={saveContact}
+                  onCancel={() => setEditing(null)}
+                  saving={savingContact}
+                />
+              )}
 
               <Controller
                 control={control}
@@ -318,14 +438,15 @@ export default function VerifyAccountPage() {
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
                   <Icon name="check_circle" size={16} />OTP Verified Successfully
                 </span>
-              ) : verifyingMobile ? (
-                <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
-              ) : mobileError ? (
-                <span className="px-1 text-xs font-medium text-error">{mobileError}</span>
               ) : (
-                <div className="self-start">
-                  <ResendControl onResend={handleResendMobileOtp} />
-                </div>
+                <>
+                  {verifyingMobile && <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>}
+                  {!verifyingMobile && mobileError && <span className="px-1 text-xs font-medium text-error">{mobileError}</span>}
+                  {/* Always available (also after a wrong code); keyed so it restarts after the number is changed. */}
+                  <div className="self-start">
+                    <ResendControl key={resendKey.mobile} onResend={handleResendMobileOtp} />
+                  </div>
+                </>
               )}
             </div>
 
@@ -339,10 +460,22 @@ export default function VerifyAccountPage() {
                 </div>
                 {!emailVerified && (
                   <span className="shrink-0 whitespace-nowrap text-xs font-medium text-on-surface-variant">
-                    Wrong email? <button type="button" className="font-bold text-primary hover:underline">Edit</button>
+                    Wrong email? <button type="button" onClick={() => startEdit("email")} className="font-bold text-primary hover:underline">Edit</button>
                   </span>
                 )}
               </div>
+
+              {editing === "email" && (
+                <ContactEditor
+                  type="email"
+                  label="Email address"
+                  value={editValue}
+                  onChange={setEditValue}
+                  onSave={saveContact}
+                  onCancel={() => setEditing(null)}
+                  saving={savingContact}
+                />
+              )}
 
               <Controller
                 control={control}
@@ -361,14 +494,14 @@ export default function VerifyAccountPage() {
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
                   <Icon name="check_circle" size={16} />OTP Verified Successfully
                 </span>
-              ) : verifyingEmail ? (
-                <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
-              ) : emailError ? (
-                <span className="px-1 text-xs font-medium text-error">{emailError}</span>
               ) : (
-                <div className="self-start">
-                  <ResendControl onResend={handleResendEmailOtp} />
-                </div>
+                <>
+                  {verifyingEmail && <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>}
+                  {!verifyingEmail && emailError && <span className="px-1 text-xs font-medium text-error">{emailError}</span>}
+                  <div className="self-start">
+                    <ResendControl key={resendKey.email} onResend={handleResendEmailOtp} />
+                  </div>
+                </>
               )}
             </div>
           </div>

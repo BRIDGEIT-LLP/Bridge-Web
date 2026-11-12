@@ -62,7 +62,7 @@ export default function IntentPage() {
   const [note, setNote] = useState(String(data.intentNote ?? ""));
   const noteTouched = useRef(false);
 
-  // The first render runs before the onboarding draft is read from localStorage, and after signing back in the
+  // The first render runs before the saved application is reloaded from the server, and after signing back in the
   // draft may be missing or old. The intent saved on the server (build-profile) is the source of truth.
   useEffect(() => {
     if (!isDataLoaded || !cfg) return;
@@ -145,9 +145,9 @@ export default function IntentPage() {
     <div className="bp">
       <div className="ob">
         <div className="ob-top">
-          <Link className="brand" href="/" aria-label="Bridge Platform home">
+          <div className="brand" aria-label="Bridge Platform">
             <BrandLockup />
-          </Link>
+          </div>
           <div className="hstack">
             {savedAt && (
               <p className="draft-note">

@@ -179,7 +179,8 @@ export function Select(props: SelectProps) {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search…"
-                    className="h-10 w-full rounded-lg border-none bg-surface-container-highest pl-9 pr-3 text-sm text-on-surface placeholder:text-outline-variant focus:ring-1 focus:ring-primary/40"
+                    style={{ paddingLeft: 40 }}
+                    className="h-10 w-full rounded-lg border-none bg-surface-container-highest pr-3 text-sm text-on-surface placeholder:text-outline-variant focus:ring-1 focus:ring-primary/40"
                   />
                 </div>
               </div>

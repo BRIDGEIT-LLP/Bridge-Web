@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { BrandLockup } from "@/components/layout/navbar";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { PasswordStrengthMeter, REGISTRATION_PASSWORD_RULES } from "@/components/auth/PasswordStrength";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { Lock, ShieldCheck, Users } from "lucide-react";
 import { Select } from "@/components/ui/Select";
@@ -14,7 +16,7 @@ import { toast } from "sonner";
 import "./registration.css";
 import { registerCompany } from "@/services/auth.service";
 import { clearSession } from "@/lib/auth-session";
-import { MEMBER_PASSWORD_REGEX, EMAIL_REGEX, phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
+import { MEMBER_PASSWORD_REGEX, MEMBER_PASSWORD_MESSAGE, EMAIL_REGEX, phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 import { SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
@@ -47,15 +49,27 @@ interface RegisterForm {
 }
 
 export default function RegisterPage() {
-  const { setData, goNext, reset } = useOnboarding();
+  return (
+    <Suspense>
+      <RegisterPageInner />
+    </Suspense>
+  );
+}
+
+function RegisterPageInner() {
+  const { data, setData, goNext, reset, isDataLoaded } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // Landing on registration starts a fresh signup: wipe the onboarding blob, the
+  // "?edit=1" means the account already exists and the user came back here (Back from the verify step, or Edit
+  // on the Review screen): keep the draft and the session and show the saved details instead of starting over.
+  const isEdit = useSearchParams().get("edit") === "1";
+  // Landing on registration WITHOUT edit starts a fresh signup: wipe the onboarding blob, the
   // auth tokens, and any stored session so no stale auth/role carries over.
   useEffect(() => {
+    if (isEdit) return;
     reset();
     clearSession();
-  }, [reset]);
+  }, [reset, isEdit]);
   const [termsOpen, setTermsOpen] = useState(false);
 
   // Defaults are hardcoded empty, not sourced from `data`: this page always starts a
@@ -69,9 +83,11 @@ export default function RegisterPage() {
     watch,
     setValue,
     trigger,
+    reset: resetForm,
+    getValues,
     formState: { errors, isSubmitting, isValid },
   } = useForm<RegisterForm>({
-    mode: "onBlur",
+    mode: "onChange",
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -87,19 +103,46 @@ export default function RegisterPage() {
     },
   });
 
+  // Edit mode: prefill the saved account details once the draft has loaded. The identity fields stay locked
+  // (the account and its verified contact details already exist); only the name can still be corrected.
+  useEffect(() => {
+    if (!isEdit || !isDataLoaded) return;
+    resetForm({
+      firstName: String(data.firstName ?? ""),
+      lastName: String(data.lastName ?? ""),
+      legalName: String(data.legalName ?? ""),
+      email: String(data.email ?? ""),
+      password: "",
+      confirmPassword: "",
+      countryCode: String(data.countryCode ?? "") || "+91",
+      contact: String(data.contact ?? ""),
+      role: String(data.role ?? "") || "startup",
+      vouch: String(data.vouch ?? ""),
+      termsAccepted: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, isDataLoaded]);
+
   const passwordVal = watch("password");
 
   const passwordField = field("password", {
-    required: "Create a password",
-    pattern: {
-      value: MEMBER_PASSWORD_REGEX,
-      message: "Use at least 8 characters with a number",
+    required: isEdit ? false : "Create a password",
+    validate: (v) => isEdit || MEMBER_PASSWORD_REGEX.test(v) || MEMBER_PASSWORD_MESSAGE,
+    // Keep "Confirm password" in step when the password is changed afterwards.
+    onChange: () => {
+      if (getValues("confirmPassword")) void trigger("confirmPassword");
     },
   });
 
   const role = useWatch({ control, name: "role" });
 
   const onSubmit = async (values: RegisterForm) => {
+    if (isEdit) {
+      // Account already created: just keep the (possibly corrected) name and move on.
+      setData({ firstName: values.firstName, lastName: values.lastName, vouch: values.vouch });
+      goNext("details");
+      return;
+    }
     // Payload shaped to the backend schema (field names, role enum, password, terms).
     const payload = {
       company_name: values.legalName,
@@ -109,6 +152,8 @@ export default function RegisterPage() {
       password: values.password,
       role: ROLE_MAP[values.role],
       termsAccepted: true,
+      first_name: values.firstName.trim(),
+      last_name: values.lastName.trim(),
     };
 
     try {
@@ -141,8 +186,8 @@ export default function RegisterPage() {
   if ((values.legalName?.trim().length ?? 0) < 2) missing.push("company name");
   if (!EMAIL_REGEX.test(values.email ?? "")) missing.push("email");
   if (!values.contact?.trim() || phoneErrorForDialCode(values.countryCode, values.contact, false)) missing.push("mobile number");
-  if (!MEMBER_PASSWORD_REGEX.test(values.password ?? "")) missing.push("password");
-  if (!values.confirmPassword || values.confirmPassword !== values.password) missing.push("matching password");
+  if (!isEdit && !MEMBER_PASSWORD_REGEX.test(values.password ?? "")) missing.push("password");
+  if (!isEdit && (!values.confirmPassword || values.confirmPassword !== values.password)) missing.push("matching password");
   if (!values.termsAccepted) missing.push("accepted terms");
 
   const missingText = missing.length
@@ -158,9 +203,9 @@ export default function RegisterPage() {
     <div className="bp">
       <div className="ob">
         <div className="ob-top">
-          <Link className="brand" href="/" aria-label="Bridge Platform home">
+          <div className="brand" aria-label="Bridge Platform">
             <BrandLockup />
-          </Link>
+          </div>
         </div>
 
         <ol
@@ -211,8 +256,12 @@ export default function RegisterPage() {
 
             <form className="ob-card" onSubmit={handleSubmit(onSubmit)} noValidate>
               <div>
-                <h2>Apply for membership</h2>
-                <p className="lede">Takes about 8 minutes. You can save and finish later.</p>
+                <h2>{isEdit ? "Your application" : "Apply for membership"}</h2>
+                <p className="lede">
+                  {isEdit
+                    ? "Your account is already created, so only your name can be changed here."
+                    : "Takes about 8 minutes. You can save and finish later."}
+                </p>
               </div>
 
               <fieldset style={{ border: 0, margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -220,7 +269,7 @@ export default function RegisterPage() {
                 <div className="choice-grid">
                   {ROLES.map((r) => (
                     <label key={r.value} className="choice">
-                      <input type="radio" value={r.value} {...field("role", { required: "Please select a role." })} />
+                      <input type="radio" value={r.value} disabled={isEdit} {...field("role", { required: isEdit ? false : "Please select a role." })} />
                       <strong>{r.label}</strong>
                       <span>{r.description}</span>
                     </label>
@@ -262,6 +311,7 @@ export default function RegisterPage() {
                   placeholder={role === "investor" ? "Northbridge Ventures" : "Global Tech Corp"}
                   autoComplete="organization"
                   aria-invalid={!!errors.legalName}
+                  readOnly={isEdit}
                   {...field("legalName", {
                     required: "Enter your company or fund name",
                     minLength: { value: 2, message: "Enter the full legal name" },
@@ -276,6 +326,7 @@ export default function RegisterPage() {
                   placeholder="name@company.com"
                   autoComplete="email"
                   aria-invalid={!!errors.email}
+                  readOnly={isEdit}
                   {...field("email", {
                     required: "Enter your work email",
                     pattern: { value: EMAIL_REGEX, message: "Enter an email like name@company.com" },
@@ -314,6 +365,7 @@ export default function RegisterPage() {
                     placeholder="98765 43210"
                     autoComplete="tel-national"
                     aria-invalid={!!errors.contact}
+                    readOnly={isEdit}
                     {...contactField}
                     onChange={(e) => {
                       if (values.countryCode === "+91") {
@@ -326,7 +378,7 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <div>
+              {!isEdit && <div>
                 <div className="row">
                   <FormField id="password" label="Password" error={errors.password?.message}>
                     <div className="pw-wrap">
@@ -352,8 +404,8 @@ export default function RegisterPage() {
                         autoComplete="new-password"
                         aria-invalid={!!errors.confirmPassword}
                         {...field("confirmPassword", {
-                          required: "Repeat your password",
-                          validate: (val) => val === passwordVal || "Passwords don’t match",
+                          required: isEdit ? false : "Repeat your password",
+                          validate: (val) => isEdit || val === passwordVal || "Passwords don’t match",
                         })}
                       />
                       <button type="button" className="pw-toggle" onClick={() => setShowConfirmPassword((v) => !v)}>
@@ -363,9 +415,10 @@ export default function RegisterPage() {
                   </FormField>
                 </div>
                 {!errors.password && (
-                  <p className="msg" style={{ marginTop: 6 }}>At least 8 characters with a number</p>
+                  <p className="msg" style={{ marginTop: 6 }}>At least 8 characters with an uppercase letter, a number and a special character</p>
                 )}
-              </div>
+                {passwordVal && <PasswordStrengthMeter value={passwordVal} rules={REGISTRATION_PASSWORD_RULES} />}
+              </div>}
 
               <FormField
                 id="vouch"
@@ -436,14 +489,16 @@ export default function RegisterPage() {
               <button
                 className="btn primary block"
                 type="submit"
-                disabled={isSubmitting || !isValid}
+                disabled={isSubmitting || !isValid || missing.length > 0}
               >
                 {isSubmitting ? <span className="spin" /> : "Continue"}
               </button>
               <p className="helper-missing" aria-live="polite">{missingText}</p>
-              <p className="signin">
-                Already a member? <Link href="/login" className="link">Sign in</Link>
-              </p>
+              {!isEdit && (
+                <p className="signin">
+                  Already a member? <Link href="/login" className="link">Sign in</Link>
+                </p>
+              )}
             </form>
           </div>
         </main>

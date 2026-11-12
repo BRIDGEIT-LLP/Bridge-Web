@@ -42,7 +42,7 @@ export function VerifyOtpScreen({
   portal?: Portal;
 }) {
   const router = useRouter();
-  const { data, setData } = useOnboarding();
+  const { data, setData, refreshFromServer } = useOnboarding();
 
   // Which channel the user picked on the previous screen.
   const channel = (data.mfaChannel as OtpChannel) ?? "PHONE";
@@ -110,6 +110,10 @@ export function VerifyOtpScreen({
         tokenType: res.data?.tokenType ?? current?.tokenType,
       });
     }
+
+    // Nothing of the application is kept in the browser: when sign-in lands on a registration step, load the saved
+    // account details (company, email, mobile, name, verification) from the database before showing it.
+    if (destination.startsWith("/registration")) await refreshFromServer();
 
     // Check the active-session limit before redirecting — applies to ALL portals.
     // The portal parameter selects the correct backend endpoint:

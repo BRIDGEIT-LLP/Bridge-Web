@@ -70,6 +70,10 @@ export const API_ENDPOINTS = {
   VERIFY_MOBILE_OTP: `${AUTH}/verify-otp`,
   VERIFY_EMAIL_OTP: `${AUTH}/verify-otp`,
   RESEND_OTP: `${AUTH}/resend-otp`,
+  // Correct an unverified email / mobile on the verify step (re-issues the pre-MFA cookie, sends a new OTP).
+  UPDATE_CONTACT: `${AUTH}/update-contact`,
+  // The saved application (account details, verification, draft step) for a signed-in / pre-verification user.
+  REGISTRATION_STATE: `${AUTH}/registration-state`,
   // Virus-scan + S3 upload (returns { s3Key }).
   SCAN_IMG: `${FILE}/scan-img`,
   SCAN_DOCUMENT: `${FILE}/scan-document`,

@@ -8,6 +8,9 @@ export interface RegisterPayload {
   password: string;
   role: "INVESTOR" | "B2B" | "STARTUP";
   termsAccepted: boolean;
+  /** Asked on the Apply step; saved so the name is there when the Profile step opens. */
+  first_name?: string;
+  last_name?: string;
   gst_number?: string;
   cin_number?: string;
 }
@@ -432,6 +435,9 @@ export interface UserProfilePayload {
   /** Optional free text next to the intent ("Anything specific?"), max 300 characters. */
   intent_note?: string;
   /** Repeatable [{ name, url }] rows — a jsonb column, not two parallel arrays. */
+  year_of_incorporation?: number;
+  funds_raised?: string;
+  co_founders?: string;
   founders?: { name: string; url: string }[];
   // investor
   ticket_size_amt_min?: number;
@@ -495,6 +501,9 @@ export interface KycDocFile {
  * the reviewer rejected; the backend upserts whichever types are present.
  */
 export interface SaveKycInfoPayload {
+  /** Documents-step draft fields, stored on the company; not documents. */
+  registered_address?: string;
+  kyc_consent?: boolean;
   AADHAAR?: {
     number: string;
     front: KycDocFile;
@@ -547,6 +556,30 @@ export interface KycRequirementsData {
   kyc_status: string | null;
   rejection_reason: string | null;
   is_kyc_uploaded: boolean;
+  /** Documents-step draft: the registered address and the consent tick, as last saved. */
+  registered_address?: string;
+  kyc_consent?: boolean;
+}
+
+/** What the registration screens reload after the browser was closed (GET /auth/registration-state). */
+export interface RegistrationStateResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    companyName?: string;
+    email?: string;
+    countryCode?: string;
+    mobileNumber?: string;
+    role?: string;
+    firstName?: string;
+    lastName?: string;
+    isEmailVerified?: boolean;
+    isPhoneVerified?: boolean;
+    isProfileCompleted?: boolean;
+    draftStep?: string | null;
+    kycAddress?: string;
+    kycConsent?: boolean;
+  };
 }
 
 /** Response from `/kyc/save-kyc-info`. */

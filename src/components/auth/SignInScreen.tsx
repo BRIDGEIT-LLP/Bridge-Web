@@ -216,7 +216,15 @@ export function SignInScreen({
           router.push(`${basePath}/verify-otp`);
           return;
         } catch (sendErr) {
-          toast.error((sendErr as ApiError).message ?? "Couldn't send the code. Please try again.");
+          const sendApiErr = sendErr as ApiError;
+          toast.error(sendApiErr.message ?? "Couldn't send the code. Please try again.");
+          // 429 = a code was already sent moments ago (e.g. signing in from another browser): it is still valid,
+          // so go to the code screen instead of the old channel picker. Anything else keeps the user here.
+          if (sendApiErr.status === 429) {
+            setData({ mfaChannel: "EMAIL" });
+            router.push(`${basePath}/verify-otp`);
+          }
+          return;
         }
       }
       router.push(`${basePath}/select-channel`);

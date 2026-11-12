@@ -104,6 +104,9 @@ export default function BusinessCheckPage() {
   const cinOk = cinState === "verified" || (cinOptional && !cin);
   const gstOk = gstState === "verified";
   const busy = cinState === "checking" || gstState === "checking";
+  // A business owner is not asked for a PAN: the company PAN is characters 3-12 of the verified GSTIN, saved with it
+  // so the Documents step does not need a PAN field.
+  const gstPan = gstOk ? gst.trim().toUpperCase().slice(2, 12) : "";
   const canContinue = (!isB2B || gstOk) && cinOk && (isB2B || panValid) && !busy;
 
   const missing: string[] = [];
@@ -181,7 +184,7 @@ export default function BusinessCheckPage() {
         {
           gst_number: isB2B && vGst ? vGst : undefined,
           cin_number: vCin || undefined,
-          pan_number: !isB2B && PAN_REGEX.test(pan) ? pan : undefined,
+          pan_number: isB2B ? (PAN_REGEX.test(gstPan) ? gstPan : undefined) : PAN_REGEX.test(pan) ? pan : undefined,
         },
         { step: "business" },
       );
@@ -204,7 +207,7 @@ export default function BusinessCheckPage() {
       // Persists CIN (company) and PAN (KYC record) on the server; the role decides what it accepts.
       await saveBusinessCheck(
         isB2B
-          ? { gst_number: gst.trim().toUpperCase(), cin_number: verifiedCin }
+          ? { gst_number: gst.trim().toUpperCase(), cin_number: verifiedCin, pan_number: PAN_REGEX.test(gstPan) ? gstPan : undefined }
           : { cin_number: verifiedCin || undefined, pan_number: pan || undefined }
       );
     } catch (err) {
@@ -259,9 +262,9 @@ export default function BusinessCheckPage() {
     <div className="bp">
       <div className="ob">
         <div className="ob-top">
-          <Link className="brand" href="/" aria-label="Bridge Platform home">
+          <div className="brand" aria-label="Bridge Platform">
             <BrandLockup />
-          </Link>
+          </div>
           <div className="hstack">
             {savedAt && (
               <p className="draft-note">

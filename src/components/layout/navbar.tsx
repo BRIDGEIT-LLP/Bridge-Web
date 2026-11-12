@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
@@ -266,9 +265,9 @@ export function Navbar() {
 
     return (
         <nav className="flex-none flex items-center justify-between px-4 py-2 w-full max-w-[1200px] mx-auto sm:px-6">
-            <Link href="/" aria-label="Bridge Platform home">
+            <div aria-label="Bridge Platform">
                 <BrandLockup />
-            </Link>
+            </div>
         </nav>
     );
 }

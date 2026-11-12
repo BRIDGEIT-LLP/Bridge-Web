@@ -3,23 +3,19 @@
 import { Icon } from "@/components/ui/Icon";
 
 /**
- * Live password checklist + strength meter, shared by the password-reset flow and
- * company registration. The rules below together equal the canonical PASSWORD_REGEX
- * in `lib/validation.ts` — change both together.
+ * Live password checklist + strength meter, shared by the password-reset flow and company registration.
+ * The rules below together equal MEMBER_PASSWORD_REGEX in `lib/validation.ts` — change both together
+ * (and `memberPassword` in the backend's authValidation.js).
  */
 export const PASSWORD_RULES: { label: string; test: (v: string) => boolean }[] = [
   { label: "At least 8 characters", test: (v) => v.length >= 8 },
   { label: "An uppercase letter", test: (v) => /[A-Z]/.test(v) },
-  { label: "A lowercase letter", test: (v) => /[a-z]/.test(v) },
   { label: "A number", test: (v) => /\d/.test(v) },
-  { label: "A special character (@$!%*?&)", test: (v) => /[@$!%*?&]/.test(v) },
+  { label: "A special character (e.g. @ # $ ! %)", test: (v) => /[^A-Za-z0-9\s]/.test(v) },
 ];
 
-/** Member registration rules (new UI): 8+ characters with a number. Reset-password keeps PASSWORD_RULES. */
-export const REGISTRATION_PASSWORD_RULES: { label: string; test: (v: string) => boolean }[] = [
-  { label: "At least 8 characters", test: (v) => v.length >= 8 },
-  { label: "A number", test: (v) => /\d/.test(v) },
-];
+/** Member registration uses the same rules as password reset. */
+export const REGISTRATION_PASSWORD_RULES = PASSWORD_RULES;
 
 const STRENGTH_LABELS = ["Too weak", "Weak", "Fair", "Good", "Strong"];
 

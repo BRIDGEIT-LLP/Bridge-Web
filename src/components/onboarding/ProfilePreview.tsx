@@ -111,7 +111,7 @@ export function roleSection(
       rows: [
         { label: "Industry Sectors", value: optLabels(INDUSTRY_SECTORS, s.industrySectors), full: true },
         { label: "Funding Stage", value: optLabel(FUNDING_STAGES, s.fundingStage) },
-        { label: "Funding Ask", value: moneyRange(s.fundingCurrency, s.fundingMin, s.fundingMax) },
+        { label: "Raising", value: s.raisingCr ? `₹ ${s.raisingCr} Cr` : moneyRange(s.fundingCurrency, s.fundingMin, s.fundingMax) },
         { label: "Team Size", value: optLabel(TEAM_SIZE_RANGES, s.teamSize) },
         { label: "Intent", value: optLabel(INTENT_OPTIONS, s.intent) },
         {
@@ -153,7 +153,13 @@ export function roleSection(
       rows: [
         { label: "Sector Preferences", value: optLabels(INDUSTRY_SECTORS, inv.sectorPreferences), full: true },
         { label: "Investment Stages", value: optLabels(INVESTMENT_STAGES, inv.investmentStages), full: true },
-        { label: "Ticket Size", value: moneyRange(inv.ticketCurrency, inv.ticketMin, inv.ticketMax) },
+        {
+          label: "Ticket Size",
+          value:
+            inv.ticketMinCr || inv.ticketMaxCr
+              ? `₹ ${inv.ticketMinCr || "?"} – ${inv.ticketMaxCr || "?"} Cr`
+              : moneyRange(inv.ticketCurrency, inv.ticketMin, inv.ticketMax),
+        },
         { label: "Investor Type", value: optLabel(INVESTOR_TYPES, inv.investorType) },
         { label: "Primary Intent", value: optLabel(PRIMARY_INTENT_OPTIONS, inv.primaryIntent) },
         { label: "Number of Investments", value: inv.numberOfInvestments },
