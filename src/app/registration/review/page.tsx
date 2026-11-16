@@ -112,6 +112,8 @@ export default function ReviewPage() {
   // Role section: the labelled preview rows when this browser has the form values; otherwise the saved columns.
   // Review wording for a few B2B columns (the shared labels are also used by the profile pages).
   const REVIEW_LABELS: Record<string, string> = {
+    ticket_size_amt_min: "Smallest Cheque",
+    ticket_size_amt_max: "Largest Cheque",
     revenue_band: "Annual Revenue",
     business_requirements: "What You Need",
     operational_capacity_description: "Operational Capacity",

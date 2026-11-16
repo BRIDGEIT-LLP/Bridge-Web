@@ -50,11 +50,11 @@ export function ResetVerifyOtpScreen({ from = "/login" }: { from?: string }) {
 
   return (
     <OtpVerifyCard
-      title="Verify your email"
+      title="Check your email"
       subtitle={
         <>
-          We&apos;ve sent a {OTP_LENGTH}-digit code to{" "}
-          <span className="font-semibold text-on-surface">{maskEmail(resetEmail)}</span>.
+          We sent a {OTP_LENGTH} digit code to{" "}
+          <span className="font-semibold text-[#1A1F2B]">{maskEmail(resetEmail)}</span>.
         </>
       }
       backHref={`/reset-password${fromQuery}`}
@@ -62,6 +62,8 @@ export function ResetVerifyOtpScreen({ from = "/login" }: { from?: string }) {
       channelLabel="Email OTP"
       onVerify={handleVerify}
       onResend={handleResend}
+      variant="prototype"
+      submitLabel="Verify code"
     />
   );
 }
