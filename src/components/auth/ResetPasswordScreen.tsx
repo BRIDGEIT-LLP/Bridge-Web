@@ -6,16 +6,11 @@ import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
-import { Card } from "@/components/ui/Card";
 import { Loader } from "@/components/common/loader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
-import {
-  PASSWORD_RULES,
-  PasswordRequirements,
-  PasswordStrengthMeter,
-  metRuleCount,
-} from "@/components/auth/PasswordStrength";
+import { PASSWORD_RULES, PasswordStrengthMeter, metRuleCount } from "@/components/auth/PasswordStrength";
 import { resetPassword } from "@/services/auth.service";
+import { MEMBER_PASSWORD_MESSAGE } from "@/lib/validation";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
@@ -24,19 +19,61 @@ interface ResetPasswordForm {
   confirmPassword: string;
 }
 
+const fieldCls = (hasError: boolean) =>
+  `min-h-[42px] w-full rounded-lg border bg-white px-3 py-2.5 !pr-14 text-sm leading-[1.4] text-[#1A1F2B] transition-[border-color,box-shadow] placeholder:text-[#8A93A0] hover:border-[#B4BDC9] focus:border-[#0C56D0] focus:outline-none focus:ring-[3px] focus:ring-[#EAF1FC] ${
+    hasError ? "border-[#9F403D]" : "border-[#CFD6DF]"
+  }`;
+
+/** Password input with the prototype's "Show / Hide" text toggle. */
+function PasswordField({
+  id,
+  label,
+  placeholder,
+  error,
+  registration,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+  error?: string;
+  registration: React.InputHTMLAttributes<HTMLInputElement>;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="text-[12.5px] font-semibold text-[#1A1F2B]">{label}</label>
+      <div className="relative">
+        <input
+          id={id}
+          type={show ? "text" : "password"}
+          autoComplete="new-password"
+          placeholder={placeholder}
+          className={fieldCls(Boolean(error))}
+          {...registration}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs font-semibold text-[#5B6472]"
+        >
+          {show ? "Hide" : "Show"}
+        </button>
+      </div>
+      {error && <p className="text-xs text-[#9F403D]">{error}</p>}
+    </div>
+  );
+}
+
 /**
- * Step 3 of the password-reset flow: choose a new password. Built from the Stitch
- * "Forgot Password – Reset" screen. The reset is authorized by the short-lived
- * reset token cookie set at the verify step (sent automatically by the browser).
- * On success the backend clears that cookie itself; here we just reset the local
- * flow data and advance to the success screen. `from` is the originating portal
- * sign-in (for the cancel / success links).
+ * Step 3 of the password-reset flow: choose a new password, in the same card as the rest of the member sign-in
+ * (design prototype). The reset is authorized by the short-lived reset token cookie set at the verify step (sent
+ * automatically by the browser). On success the backend clears that cookie itself; here we just reset the local
+ * flow data and advance to the success screen. `from` is the originating portal sign-in (for the back / success
+ * links).
  */
 export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
   const router = useRouter();
   const { reset: resetOnboarding } = useOnboarding();
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const fromQuery = `?from=${encodeURIComponent(from)}`;
 
@@ -44,7 +81,7 @@ export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
     register: field,
     handleSubmit,
     control,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<ResetPasswordForm>({
     mode: "onChange",
     defaultValues: { newPassword: "", confirmPassword: "" },
@@ -75,108 +112,55 @@ export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
   };
 
   return (
-    <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
-      <Card padding="lg" className="w-full max-w-[480px] !p-8 sm:!p-10">
-        <header className="mb-8">
-          <h1 className="mb-2 font-headline text-3xl font-extrabold tracking-tight text-on-surface">
-            Reset Password
-          </h1>
-          <p className="text-sm leading-relaxed text-on-surface-variant">
-            Choose a secure password to protect your account.
-          </p>
-        </header>
+    <div className="min-h-full bg-[#F6F8FA] px-4 py-8 sm:px-6 sm:py-10">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="mx-auto flex w-full max-w-[470px] flex-col gap-[18px] rounded-[14px] border border-[#E3E8EE] bg-white p-[22px_18px] shadow-[0_10px_30px_rgba(26,31,43,.08)] sm:rounded-2xl sm:p-8"
+      >
+        <Link
+          href={from}
+          className="inline-flex items-center gap-1.5 self-start py-0.5 text-[13px] font-semibold text-[#1A1F2B] hover:text-[#0C56D0]"
+        >
+          <Icon name="chevron_left" size={14} />
+          Back to sign in
+        </Link>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
-          {/* New Password */}
-          <div className="space-y-2">
-            <label
-              htmlFor="newPassword"
-              className="block font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant"
-            >
-              New Password
-            </label>
-            <div className="relative">
-              <input
-                id="newPassword"
-                type={showNew ? "text" : "password"}
-                placeholder="••••••••"
-                className={`w-full rounded-xl border bg-surface-container-lowest px-4 py-3.5 pr-12 text-on-surface transition-all focus:outline-none focus:ring-4 focus:ring-primary/5 ${
-                  newPassword.length > 0 && !allMet
-                    ? "border-error/60 focus:border-error"
-                    : "border-outline-variant/30 focus:border-primary"
-                }`}
-                {...field("newPassword", { required: true })}
-              />
-              <button
-                type="button"
-                onClick={() => setShowNew((s) => !s)}
-                aria-label={showNew ? "Hide password" : "Show password"}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-outline transition-colors hover:text-primary"
-              >
-                <Icon name={showNew ? "visibility_off" : "visibility"} size={20} />
-              </button>
-            </div>
+        <div>
+          <h2 className="font-headline text-[22px] font-bold tracking-[-0.01em] text-[#1A1F2B]">Choose a new password</h2>
+          <p className="mt-1 text-[13px] text-[#5B6472]">Pick a password you have not used with Bridge before.</p>
+        </div>
 
+        <div className="flex flex-col gap-1.5">
+          <PasswordField
+            id="newPassword"
+            label="New password"
+            placeholder="Create a password"
+            registration={field("newPassword", { required: true })}
+          />
+          {newPassword ? (
             <PasswordStrengthMeter value={newPassword} />
-          </div>
-
-          {/* Confirm Password */}
-          <div className="space-y-2">
-            <label
-              htmlFor="confirmPassword"
-              className="block font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant"
-            >
-              Confirm Password
-            </label>
-            <div className="relative">
-              <input
-                id="confirmPassword"
-                type={showConfirm ? "text" : "password"}
-                placeholder="••••••••"
-                className={`w-full rounded-xl border bg-surface-container-lowest px-4 py-3.5 pr-12 text-on-surface transition-all focus:outline-none focus:ring-4 focus:ring-primary/5 ${
-                  confirmPassword.length > 0 && !matches
-                    ? "border-error/60 focus:border-error"
-                    : "border-outline-variant/30 focus:border-primary"
-                }`}
-                {...field("confirmPassword", { required: true })}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm((s) => !s)}
-                aria-label={showConfirm ? "Hide password" : "Show password"}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-outline transition-colors hover:text-primary"
-              >
-                <Icon name={showConfirm ? "visibility_off" : "visibility"} size={20} />
-              </button>
-            </div>
-            {confirmPassword.length > 0 && !matches && (
-              <span className="px-1 text-xs font-medium text-error">Passwords don&apos;t match.</span>
-            )}
-          </div>
-
-          {/* Requirements checklist */}
-          <PasswordRequirements value={newPassword} />
-          {errors.newPassword && newPassword.length === 0 && (
-            <span className="px-1 text-xs font-medium text-error">Enter a new password.</span>
+          ) : (
+            <p className="text-xs text-[#5B6472]">{MEMBER_PASSWORD_MESSAGE}</p>
           )}
+        </div>
 
-          {/* CTA */}
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="cta-gradient flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:transform-none disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? <Loader size={18} /> : "Reset Password"}
-          </button>
+        <PasswordField
+          id="confirmPassword"
+          label="Confirm password"
+          placeholder="Repeat the password"
+          error={confirmPassword.length > 0 && !matches ? "Passwords don’t match." : undefined}
+          registration={field("confirmPassword", { required: true })}
+        />
 
-          <Link
-            href={from}
-            className="block w-full py-2 text-center text-sm font-semibold text-outline transition-colors hover:text-on-surface"
-          >
-            Cancel and return to login
-          </Link>
-        </form>
-      </Card>
-    </main>
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg bg-[#0C56D0] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[#0A49B0] active:bg-[#083C92] disabled:cursor-not-allowed disabled:bg-[#A8BFE8]"
+        >
+          {isSubmitting ? <Loader size={18} /> : "Reset password"}
+        </button>
+      </form>
+    </div>
   );
 }

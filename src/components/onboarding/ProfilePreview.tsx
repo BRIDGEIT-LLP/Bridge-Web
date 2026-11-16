@@ -157,12 +157,18 @@ export function roleSection(
         { label: "Investor Type", value: optLabel(INVESTOR_TYPES, inv.investorType) },
         { label: "Investment Stages", value: optLabels(INVESTMENT_STAGES, inv.investmentStages), full: true },
         { label: "Sector Preferences", value: optLabels(INDUSTRY_SECTORS, inv.sectorPreferences), full: true },
+        // Smallest and largest cheque are separate rows, as on the form.
         {
-          label: "Ticket Size",
-          value:
-            inv.ticketMinCr || inv.ticketMaxCr
-              ? `₹ ${inv.ticketMinCr || "?"} – ${inv.ticketMaxCr || "?"} Cr`
-              : moneyRange(inv.ticketCurrency, inv.ticketMin, inv.ticketMax),
+          label: "Smallest Cheque",
+          value: inv.ticketMinCr
+            ? `₹ ${inv.ticketMinCr} Cr`
+            : inv.ticketMin ? `${optLabel(CURRENCIES, inv.ticketCurrency)} ${inv.ticketMin}`.trim() : "",
+        },
+        {
+          label: "Largest Cheque",
+          value: inv.ticketMaxCr
+            ? `₹ ${inv.ticketMaxCr} Cr`
+            : inv.ticketMax ? `${optLabel(CURRENCIES, inv.ticketCurrency)} ${inv.ticketMax}`.trim() : "",
         },
         { label: "Primary Intent", value: optLabel(PRIMARY_INTENT_OPTIONS, inv.primaryIntent) },
         { label: "Investment Thesis", value: inv.investmentThesis, full: true },
