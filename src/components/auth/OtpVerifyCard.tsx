@@ -39,6 +39,8 @@ interface OtpVerifyCardProps {
    * click, no auto-verify). Default keeps the OTP-box layout used by password reset.
    */
   variant?: "default" | "prototype";
+  /** Prototype variant only: the submit button's text (defaults to the sign-in wording). */
+  submitLabel?: string;
 }
 
 const DEFAULT_CONTINUE_BUTTON_CLASSNAME =
@@ -61,6 +63,7 @@ export function OtpVerifyCard({
   onResend,
   continueButtonClassName = DEFAULT_CONTINUE_BUTTON_CLASSNAME,
   variant = "default",
+  submitLabel = "Verify and sign in",
 }: OtpVerifyCardProps) {
   const [code, setCode] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
@@ -165,7 +168,7 @@ export function OtpVerifyCard({
             disabled={verified || verifying}
             className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg bg-[#0C56D0] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[#0A49B0] active:bg-[#083C92] disabled:cursor-not-allowed disabled:bg-[#A8BFE8]"
           >
-            {verifying ? <Loader size={18} /> : "Verify and sign in"}
+            {verifying ? <Loader size={18} /> : submitLabel}
           </button>
         </form>
       </div>
