@@ -18,7 +18,7 @@ import "../registration.css";
 import { useOnboarding, type OnboardingData } from "@/components/onboarding/OnboardingProvider";
 import { COUNTRIES, CONTINENTS, continentForCountry, DIAL_CODES } from "@/lib/countries";
 import { phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
-import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
+import { PRIMARY_SECTORS, SECTOR_OPTIONS } from "@/lib/b2b-profile-options";
 import { URL_REGEX } from "@/lib/startup-profile-options";
 import {
   StartupProfileFields,
@@ -636,10 +636,10 @@ export default function CompleteProfilePage() {
   const aboutComplete =
     !!allValues?.state?.trim() &&
     !!allValues?.city?.trim() &&
-    (role === "b2b_enterprise" || (allValues?.primarySectors?.length ?? 0) > 0) &&
+    (role === "b2b_enterprise" ? !!allValues?.b2b?.sector : (allValues?.primarySectors?.length ?? 0) > 0) &&
     !!allValues?.bio?.trim();
 
-  // Business owners choose one Sector (role tab); mirror it into primarySectors so it is saved on the profile.
+  // Business owners choose one Sector (About you); mirror it into primarySectors so it is saved on the profile.
   const b2bSector = useWatch({ control, name: "b2b.sector" });
   useEffect(() => {
     if (role === "b2b_enterprise" && b2bSector) setValue("primarySectors", [b2bSector], { shouldValidate: true });
@@ -729,7 +729,7 @@ export default function CompleteProfilePage() {
     const first = firstError(formErrors);
     if (!first) return;
     // Reveal the tab that holds the offending field before focusing it.
-    setTab(/^(startup|investor|b2b)\./.test(first.path) ? "role" : "about");
+    setTab(/^(startup|investor|b2b)\./.test(first.path) && first.path !== "b2b.sector" ? "role" : "about");
     toast.error(first.message);
     // The previous-UI fields live in a collapsible block; let React open it before focusing.
     setTimeout(() => {
@@ -895,8 +895,49 @@ export default function CompleteProfilePage() {
             />
           </div>
 
-          {/* Sectors: same primarySectors field as before, shown as chips. Business owners pick their Sector once, on
-              the next tab, so the chips are hidden for them (primarySectors is filled from that choice). */}
+          {/* Sectors: same primarySectors field as before, shown as chips. Business owners pick one Sector from a list
+              instead (b2b.sector; primarySectors is filled from that choice). */}
+          {role === "b2b_enterprise" && (
+            <Controller
+              control={control}
+              name="b2b.sector"
+              rules={{ required: "Select a sector." }}
+              render={({ field }) => (
+                <div className="flex flex-col gap-2" id="sector" tabIndex={-1}>
+                  <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">Sectors</span>
+                  <div className="flex flex-wrap gap-2">
+                    {SECTOR_OPTIONS.map((o) => {
+                      const on = field.value === o.value;
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => {
+                            if (on) return;
+                            field.onChange(o.value);
+                            // Reset dependent selections (asked under Your business) when the sector changes.
+                            setValue("b2b.subSector", "", { shouldValidate: false });
+                            setValue("b2b.industryVertical", "", { shouldValidate: false });
+                          }}
+                          className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                            on
+                              ? "border-primary bg-primary-container font-semibold text-primary"
+                              : "border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:border-primary/60"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.b2b?.sector?.message && (
+                    <span className="px-1 text-xs font-medium text-error">{errors.b2b.sector.message}</span>
+                  )}
+                </div>
+              )}
+            />
+          )}
           {role !== "b2b_enterprise" && <Controller
             control={control}
             name="primarySectors"
