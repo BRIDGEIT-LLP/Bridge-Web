@@ -109,29 +109,8 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
     const legacyHasError = !!(e?.industryVertical || e?.address);
     return (
       <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Controller
-            control={control}
-            name="b2b.sector"
-            rules={{ required: "Select a sector." }}
-            render={({ field }) => (
-              <Select
-                id="sector"
-                label="Sector"
-                required
-                placeholder="Select sector"
-                options={SECTOR_OPTIONS}
-                value={field.value}
-                onChange={(v) => {
-                  field.onChange(v);
-                  // Reset dependent selections when the parent changes.
-                  setValue("b2b.subSector", "", { shouldValidate: false });
-                  setValue("b2b.industryVertical", "", { shouldValidate: false });
-                }}
-                error={e?.sector?.message}
-              />
-            )}
-          />
+        {/* The Sector itself is chosen under "About you"; only the sub-sector (which depends on it) is asked here. */}
+        <div className="grid grid-cols-1 gap-4">
           <Controller
             control={control}
             name="b2b.subSector"
@@ -141,7 +120,7 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
                 id="subSector"
                 label="Sub-sector"
                 required
-                placeholder={sector ? "Select sub-sector" : "Select a sector first"}
+                placeholder={sector ? "Select sub-sector" : "Select a sector under About you first"}
                 disabled={!sector}
                 options={subSectorOptions(sector)}
                 value={field.value}
