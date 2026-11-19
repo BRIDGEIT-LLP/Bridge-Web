@@ -21,12 +21,28 @@ export function roleLabel(raw?: string): string {
   return role ? ROLE_META[role].label : raw;
 }
 
-/** Short, locale-aware date (e.g. "12 Oct 2023"); empty input → em dash. */
+/**
+ * Short date in day-month-year order (e.g. "12 Oct 2023"), matching the design.
+ * Locale is pinned to en-GB rather than left to the browser — with `undefined`,
+ * an en-US browser renders "Oct 12, 2023" regardless of the `{day, month, year}`
+ * option order, since locale convention (not object order) decides component
+ * order. Empty input → em dash.
+ */
 export function formatDate(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/** Same as `formatDate` plus a 24-hour time (e.g. "12 Oct 2023, 09:51"); empty input → em dash. */
+export function formatDateTime(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${date}, ${time}`;
 }
 
 /** Relative "x ago" for last-active style timestamps; empty input → em dash. */

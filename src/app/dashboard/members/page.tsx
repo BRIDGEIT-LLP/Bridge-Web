@@ -14,32 +14,24 @@ import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UserDetailDrawer } from "@/components/dashboard/UserDetailDrawer";
 import { TablePager } from "@/components/dashboard/TablePager";
-import { RowAction } from "@/components/dashboard/RowAction";
-import { KYC_STATUS_META, StatusPill, USER_STATUS_META } from "@/components/dashboard/kyc-status";
+import { MemberStatusPill } from "@/components/dashboard/members/MemberStatusPill";
 import { fetchUsers, setUserSuspension } from "@/services/admin.service";
-import { initials } from "@/lib/admin-format";
+import { formatDate, initials } from "@/lib/admin-format";
 import { isStaffRole, ROLE_META, USER_ROLES } from "@/lib/roles";
 import type { AdminUserListItem } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
 const PAGE_SIZE = 10;
 
-/** Table headers. `className` carries per-column alignment, as in Admin Management. */
+/** Table headers per Bridge_App_Design.pdf S50. `className` carries per-column alignment. */
 const COLUMNS: { label: string; className?: string }[] = [
-  { label: "User", className: "pl-8" },
-  { label: "Company" },
-  { label: "Phone" },
-  { label: "Email" },
-  { label: "KYC Status" },
+  { label: "Member", className: "pl-8" },
+  { label: "Role" },
+  { label: "City" },
   { label: "Status" },
-  { label: "Actions", className: "pr-8 text-right" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
-  { value: "VERIFIED", label: "KYC Verified" },
-  { value: "PENDING", label: "KYC Pending" },
-  { value: "REJECTED", label: "KYC Rejected" },
+  { label: "Profile" },
+  { label: "Joined" },
+  { label: "", className: "pr-8 text-right" },
 ];
 
 /**
@@ -47,16 +39,23 @@ const STATUS_OPTIONS = [
  * spelled out, so a role added or relabelled in `lib/roles.ts` shows up here automatically.
  */
 const ROLE_OPTIONS = [
-  { value: "", label: "All Roles" },
+  { value: "", label: "All roles" },
   ...USER_ROLES.map((r) => ({ value: r, label: ROLE_META[r].label })),
 ];
 
-export default function UserManagementPage() {
+/**
+ * Admin-only Members directory (FRD §12.5, S50) — replaces the old User Management
+ * screen (same precedent as Verification Queue replacing KYC Review). "Profile" is a
+ * stubbed "—" for now: nothing in the product computes a profile-completion
+ * percentage yet, so it's left as a placeholder until that's built. "Status" is a
+ * best-effort map of the user's latest subscription row (see `toMemberStatus` in
+ * admin.service.ts) since billing doesn't yet have real trial/payment-failure states.
+ */
+export default function MembersPage() {
   const router = useRouter();
   const { role, isLoaded } = useAuth();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [page, setPage] = useState(1);
 
@@ -91,15 +90,9 @@ export default function UserManagementPage() {
   }, [load]);
 
   // The backend returns the whole list (no pagination), so filter + page here.
-  // KYC status tabs match KYC Review: company.kyc_status, and only users who
-  // uploaded documents (`hasKycDocuments` ≡ documents.length > 0).
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
-      if (statusFilter) {
-        if (u.kycStatus !== statusFilter) return false;
-        if (!u.hasKycDocuments) return false;
-      }
       if (roleFilter && u.role !== roleFilter) return false;
       if (!q) return true;
       return (
@@ -109,7 +102,7 @@ export default function UserManagementPage() {
         (u.mobileNumber ?? "").includes(q)
       );
     });
-  }, [users, search, statusFilter, roleFilter]);
+  }, [users, search, roleFilter]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -120,10 +113,6 @@ export default function UserManagementPage() {
 
   const onSearch = (v: string) => {
     setSearch(v);
-    setPage(1);
-  };
-  const onStatus = (v: string) => {
-    setStatusFilter(v);
     setPage(1);
   };
   const onRole = (v: string) => {
@@ -143,7 +132,7 @@ export default function UserManagementPage() {
     setReasonError("");
   };
 
-  /** Suspend / reactivate, confirmed through the dialog below. */
+  /** Suspend / reactivate, confirmed through the dialog below. Also usable from the detail drawer. */
   const handleToggleSuspension = async () => {
     if (!confirming?.userId) return;
     const suspending = !confirming.suspended;
@@ -175,6 +164,7 @@ export default function UserManagementPage() {
         suspending ? `${confirming.name} was suspended.` : `${confirming.name} was reactivated.`
       );
       closeConfirm();
+      setSelected(null);
     } catch (err) {
       toast.error((err as ApiError).message || "Couldn't update the user. Please try again.");
     } finally {
@@ -186,35 +176,29 @@ export default function UserManagementPage() {
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">
-      {/* Header */}
+      {/* Header — no subtitle here per the design (S50). */}
       <div className="mb-6">
         <h1 className="font-headline text-2xl font-extrabold tracking-[-0.02em] text-on-surface md:text-3xl">
-          User Management
+          Members
         </h1>
-        <p className="mt-1 text-on-surface-variant">Oversee and manage your growing ecosystem of users.</p>
       </div>
 
       {/* Filters + table — one card, so the filter row reads as this table's toolbar
           rather than as a separate panel floating above it. No `overflow-hidden` here:
-          it would clip the dropdowns' popovers. */}
+          it would clip the dropdown's popover. */}
       <Card surface="lowest" padding="none">
-        {/* Search takes the slack; both dropdowns keep a fixed, equal width so the row
-            stays balanced. Stacks only below `sm`. */}
         <div className="border-b border-outline/10 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1">
               <Input
-                placeholder="Search by name, email, company, phone…"
+                placeholder="Search members"
                 value={search}
                 onChange={(e) => onSearch(e.target.value)}
                 adornment={<Icon name="search" size={18} />}
               />
             </div>
             <div className="shrink-0 sm:w-44">
-              <Select aria-label="User role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All Roles" />
-            </div>
-            <div className="shrink-0 sm:w-48">
-              <Select aria-label="KYC status" options={STATUS_OPTIONS} value={statusFilter} onChange={onStatus} placeholder="All Statuses" />
+              <Select aria-label="Member role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All roles" />
             </div>
           </div>
         </div>
@@ -225,20 +209,18 @@ export default function UserManagementPage() {
           onRetry={load}
           isEmpty={total === 0}
           emptyIcon="group_off"
-          emptyText="No users match these filters."
+          emptyText="No members match these filters."
         >
-          {/* Fixed viewport of exactly PAGE_SIZE rows (header 41px + 10 × 69px), so the card
-              keeps its height on a short last page and the rows — not the header — scroll.
-              `border-separate` (not `collapse`) is required for the sticky header to keep
-              its bottom rule; row rules therefore live on the `td`s. */}
-          <div className="h-[500px] overflow-auto">
-            <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left">
+          {/* No fixed height here — at most PAGE_SIZE rows are ever rendered (paginated
+              below), so the table should size to its content, not scroll internally. */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] border-separate border-spacing-0 text-left">
               <thead>
                 <tr>
                   {COLUMNS.map((col) => (
                     <th
                       key={col.label}
-                      className={`sticky top-0 z-10 border-b border-outline/10 bg-surface-container-lowest px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant ${col.className ?? ""}`}
+                      className={`border-b border-outline/10 bg-surface-container-lowest px-5 py-3 text-sm font-bold text-on-surface-variant ${col.className ?? ""}`}
                     >
                       {col.label}
                     </th>
@@ -260,42 +242,28 @@ export default function UserManagementPage() {
                         </Avatar>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-on-surface">{u.name}</p>
-                          <p className="truncate text-xs text-on-surface-variant">
-                            {u.role ? ROLE_META[u.role].label : "—"}
-                          </p>
+                          <p className="truncate text-xs text-on-surface-variant">{u.companyName ?? "—"}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-sm text-on-surface">{u.companyName ?? "—"}</td>
                     <td className="px-5 py-4 text-sm text-on-surface-variant">
-                      {u.mobileNumber ? `${u.countryCode ? `${u.countryCode} ` : ""}${u.mobileNumber}` : "—"}
+                      {u.role ? ROLE_META[u.role].label : "—"}
                     </td>
-                    <td className="px-5 py-4 text-sm text-on-surface-variant">{u.email}</td>
+                    <td className="px-5 py-4 text-sm text-on-surface-variant">{u.city ?? "—"}</td>
                     <td className="px-5 py-4">
-                      <StatusPill {...KYC_STATUS_META[u.kycStatus]} />
+                      <MemberStatusPill status={u.memberStatus} />
                     </td>
-                    <td className="px-5 py-4">
-                      <StatusPill {...USER_STATUS_META[u.suspended ? "SUSPENDED" : "ACTIVE"]} />
-                    </td>
-                    <td className="py-4 pl-5 pr-8">
-                      <div className="flex items-center justify-end gap-1">
-                        <RowAction
-                          icon="visibility"
-                          label={`View ${u.name}`}
-                          title="View Profile"
-                          onClick={() => setSelected(u)}
-                        />
-                        <RowAction
-                          icon={u.suspended ? "restart_alt" : "block"}
-                          label={`${u.suspended ? "Reactivate" : "Suspend"} ${u.name}`}
-                          title={u.suspended ? "Reactivate User" : "Suspend User"}
-                          danger={!u.suspended}
-                          // The suspension endpoint is keyed by `userId`; a row without one
-                          // can't be actioned, so don't offer a button that would fail.
-                          disabled={!u.userId}
-                          onClick={() => openConfirm(u)}
-                        />
-                      </div>
+                    {/* Stubbed until profile-completion % is actually computed. */}
+                    <td className="px-5 py-4 text-sm text-on-surface-variant">—</td>
+                    <td className="px-5 py-4 text-sm text-on-surface-variant">{formatDate(u.joinedAt ?? undefined)}</td>
+                    <td className="py-4 pl-5 pr-8 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(u)}
+                        className="rounded-lg px-3 py-1.5 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+                      >
+                        Manage
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -309,13 +277,17 @@ export default function UserManagementPage() {
             rangeStart={rangeStart}
             rangeEnd={rangeEnd}
             total={total}
-            noun="users"
+            noun="members"
             onPage={setPage}
           />
         </AsyncState>
       </Card>
 
-      <UserDetailDrawer user={selected} onClose={() => setSelected(null)} />
+      <UserDetailDrawer
+        user={selected}
+        onClose={() => setSelected(null)}
+        onToggleSuspension={selected?.userId ? () => openConfirm(selected) : undefined}
+      />
 
       {/* Suspend / reactivate confirmation — same dialog shape as Admin Management. */}
       <Modal
@@ -375,7 +347,7 @@ export default function UserManagementPage() {
 
             {/* Asked for on both paths — it lands on the suspension history either way. */}
             <Textarea
-              id="user-suspension-reason"
+              id="member-suspension-reason"
               label={confirming.suspended ? "Reason for reactivation" : "Reason for suspension"}
               required
               rows={3}
