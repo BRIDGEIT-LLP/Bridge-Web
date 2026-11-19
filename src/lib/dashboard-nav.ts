@@ -104,6 +104,30 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
   ],
 };
 
+/** Primary mobile bottom-tab entry. */
+export interface BottomTab {
+  key: string;
+  label: string;
+  icon: string;
+  route: string;
+}
+
+/**
+ * Bottom tab bar (mobile) for the three user roles. A trailing "More" tab, added by
+ * the layout, opens the full sidebar drawer. Staff roles have 8+ admin sections so
+ * they keep the drawer only — no entry here means no bottom bar.
+ */
+const USER_BOTTOM_TABS: BottomTab[] = [
+  { key: "home", label: "Home", icon: "home", route: "/dashboard" },
+  { key: "introductions", label: "Introductions", icon: "group_add", route: "/dashboard/explore" },
+  { key: "requests", label: "Requests", icon: "inbox", route: "/dashboard/connections" },
+  { key: "rooms", label: "Rooms", icon: "handshake", route: "/dashboard/deal-room" },
+];
+
+export function getBottomTabsForRole(role: Role): BottomTab[] {
+  return role === "startup" || role === "investor" || role === "b2b_enterprise" ? USER_BOTTOM_TABS : [];
+}
+
 /** Nav items for a role (empty array if the role is unknown). */
 export function getNavForRole(role: Role): NavItem[] {
   return DASHBOARD_NAV[role] ?? [];
