@@ -21,9 +21,6 @@ import {
 } from "@/lib/investor-profile-options";
 import {
   PRIMARY_SECTORS,
-  SECTOR_OPTIONS,
-  subSectorOptions,
-  verticalOptions,
   BUSINESS_TYPES,
   B2B_GEOGRAPHY_REGIONS,
   REVENUE_BANDS,
@@ -188,8 +185,8 @@ export function roleSection(
       title: "Business Details",
       rows: [
         // Business name and Sector are shown under Account / About you on the review, so they are not repeated here.
-        { label: "Sub-Sector", value: optLabel(subSectorOptions(b.sector), b.subSector) },
-        { label: "Industry Vertical", value: optLabel(verticalOptions(b.sector, b.subSector), b.industryVertical) },
+        { label: "Sub-Sector", value: b.subSector },
+        { label: "Industry Vertical", value: b.industryVertical },
         // { label: "Business Type", value: optLabel(BUSINESS_TYPES, b.businessType) },
         { label: "Annual Revenue", value: optLabel(REVENUE_BANDS, b.revenueBand) },
         { label: "Years in Operation", value: b.yearsInOperation },

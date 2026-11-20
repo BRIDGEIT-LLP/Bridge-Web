@@ -15,9 +15,6 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { URL_REGEX, LINKEDIN_URL_PATTERN } from "@/lib/startup-profile-options";
 import {
-  SECTOR_OPTIONS,
-  subSectorOptions,
-  verticalOptions,
   BUSINESS_TYPES,
   MOQ_REQUIRED_TYPES,
   REVENUE_BANDS,
@@ -31,7 +28,6 @@ import type { CompleteProfileForm } from "@/components/onboarding/StartupProfile
 
 export interface B2BValues {
   businessName: string;
-  sector: string;
   subSector: string;
   industryVertical: string;
   businessType: string;
@@ -53,7 +49,6 @@ export interface B2BValues {
 
 export const defaultB2BValues: B2BValues = {
   businessName: "",
-  sector: "",
   subSector: "",
   industryVertical: "",
   businessType: "",
@@ -94,8 +89,6 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
   const [legacyOpen, setLegacyOpen] = React.useState(false);
   const e = errors.b2b;
 
-  const sector = useWatch({ control, name: "b2b.sector" });
-  const subSector = useWatch({ control, name: "b2b.subSector" });
   const businessType = useWatch({ control, name: "b2b.businessType" });
   const products = useWatch({ control, name: "b2b.productsServices" });
   const requirements = useWatch({ control, name: "b2b.businessRequirements" });
@@ -109,28 +102,16 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
     const legacyHasError = !!(e?.industryVertical || e?.address);
     return (
       <div className="flex flex-col gap-5">
-        {/* The Sector itself is chosen under "About you"; only the sub-sector (which depends on it) is asked here. */}
+        {/* The Sector itself (multi-select, shared by every role) is chosen under "About you"; sub-sector is free text. */}
         <div className="grid grid-cols-1 gap-4">
-          <Controller
-            control={control}
-            name="b2b.subSector"
-            rules={{ required: "Select a sub-sector." }}
-            render={({ field }) => (
-              <Select
-                id="subSector"
-                label="Sub-sector"
-                required
-                placeholder={sector ? "Select sub-sector" : "Select a sector under About you first"}
-                disabled={!sector}
-                options={subSectorOptions(sector)}
-                value={field.value}
-                onChange={(v) => {
-                  field.onChange(v);
-                  setValue("b2b.industryVertical", "", { shouldValidate: false });
-                }}
-                error={e?.subSector?.message}
-              />
-            )}
+          <Input
+            id="subSector"
+            label="Sub-sector"
+            required
+            placeholder="Flexible packaging"
+            maxLength={100}
+            error={e?.subSector?.message}
+            {...register("b2b.subSector", { required: "Add sub-sector.", setValueAs: (v: string) => (v ?? "").trim() })}
           />
         </div>
         <Controller
@@ -291,22 +272,13 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
               className="cursor-not-allowed text-on-surface-variant"
               {...register("b2b.businessName")}
             />
-            <Controller
-              control={control}
-              name="b2b.industryVertical"
-              render={({ field }) => (
-                <Select
-                  id="industryVertical"
-                  label="Industry Vertical"
-                  optional
-                  placeholder={subSector ? "Select vertical" : "Select a sub-sector first"}
-                  disabled={!subSector}
-                  options={verticalOptions(sector, subSector)}
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={e?.industryVertical?.message}
-                />
-              )}
+            <Input
+              id="industryVertical"
+              label="Industry Vertical"
+              optional
+              maxLength={100}
+              error={e?.industryVertical?.message}
+              {...register("b2b.industryVertical")}
             />
             <Textarea
               id="address"
@@ -338,69 +310,23 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
         {...register("b2b.businessName")}
       />
 
-      {/* Sector → Sub-Sector → Industry Vertical (cascading) */}
-      <Controller
-        control={control}
-        name="b2b.sector"
-        rules={{ required: "Select a sector." }}
-        render={({ field }) => (
-          <Select
-            id="sector"
-            label="Sector"
-            required
-            placeholder="Select sector"
-            options={SECTOR_OPTIONS}
-            value={field.value}
-            onChange={(v) => {
-              field.onChange(v);
-              // Reset dependent selections when the parent changes.
-              setValue("b2b.subSector", "", { shouldValidate: false });
-              setValue("b2b.industryVertical", "", { shouldValidate: false });
-            }}
-            error={e?.sector?.message}
-          />
-        )}
-      />
-
+      {/* Sector is the shared multi-select (primary_sector); sub-sector and vertical are free text. */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Controller
-          control={control}
-          name="b2b.subSector"
-          rules={{ required: "Select a sub-sector." }}
-          render={({ field }) => (
-            <Select
-              id="subSector"
-              label="Sub-Sector"
-              required
-              placeholder={sector ? "Select sub-sector" : "Select a sector first"}
-              disabled={!sector}
-              options={subSectorOptions(sector)}
-              value={field.value}
-              onChange={(v) => {
-                field.onChange(v);
-                setValue("b2b.industryVertical", "", { shouldValidate: false });
-              }}
-              error={e?.subSector?.message}
-            />
-          )}
+        <Input
+          id="subSector"
+          label="Sub-Sector"
+          required
+          maxLength={100}
+          error={e?.subSector?.message}
+          {...register("b2b.subSector", { required: "Add sub-sector.", setValueAs: (v: string) => (v ?? "").trim() })}
         />
-        <Controller
-          control={control}
-          name="b2b.industryVertical"
-          rules={{ required: "Select an industry vertical." }}
-          render={({ field }) => (
-            <Select
-              id="industryVertical"
-              label="Industry Vertical"
-              required
-              placeholder={subSector ? "Select vertical" : "Select a sub-sector first"}
-              disabled={!subSector}
-              options={verticalOptions(sector, subSector)}
-              value={field.value}
-              onChange={field.onChange}
-              error={e?.industryVertical?.message}
-            />
-          )}
+        <Input
+          id="industryVertical"
+          label="Industry Vertical"
+          required
+          maxLength={100}
+          error={e?.industryVertical?.message}
+          {...register("b2b.industryVertical", { required: "Add industry vertical." })}
         />
       </div>
 

@@ -109,7 +109,7 @@ export function roleFacts(match: ExploreMatch): { label: string; value: string }
     add("Investments", match.number_of_investments_to_date);
     add("Intent", match.investor_intent ? prettyTag(match.investor_intent) : "");
   } else if (match.role === "B2B") {
-    add("Sector", match.b2b_sector ? prettyTag(match.b2b_sector) : "");
+    add("Sector", match.primary_sector?.map(prettyTag).join(", "));
     add("Sub-sector", match.b2b_sub_sector ? prettyTag(match.b2b_sub_sector) : "");
     add("Vertical", match.industry_vertical ? prettyTag(match.industry_vertical) : "");
     add("Revenue", match.revenue_band ? prettyTag(match.revenue_band) : "");

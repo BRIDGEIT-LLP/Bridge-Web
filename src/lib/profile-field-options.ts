@@ -29,8 +29,6 @@ import {
 } from "@/lib/investor-profile-options";
 import {
   PRIMARY_SECTORS,
-  SECTOR_OPTIONS,
-  SECTOR_TAXONOMY,
   BUSINESS_TYPES,
   REVENUE_BANDS,
   EXPORT_READINESS,
@@ -46,29 +44,6 @@ export interface FieldOptionConfig {
   /** Force the in-panel search box (defaults to Select's length-based rule). */
   searchable?: boolean;
 }
-
-/** Drop duplicate option values while preserving order. */
-const dedupe = (opts: Option[]): Option[] => {
-  const seen = new Set<string>();
-  return opts.filter((o) => (seen.has(o.value) ? false : (seen.add(o.value), true)));
-};
-
-/**
- * The B2B sub-sector / vertical pickers are cascading in registration. On the
- * profile page each field stands alone, so we offer the flattened union of every
- * sub-sector / vertical across all sectors (enough to resolve the stored value to
- * a label and let the user re-pick).
- */
-const ALL_SUB_SECTORS = dedupe(
-  SECTOR_TAXONOMY.flatMap((s) => (s.children ?? []).map(({ value, label }) => ({ value, label }))),
-);
-const ALL_VERTICALS = dedupe(
-  SECTOR_TAXONOMY.flatMap((s) =>
-    (s.children ?? []).flatMap((ss) =>
-      (ss.children ?? []).map(({ value, label }) => ({ value, label })),
-    ),
-  ),
-);
 
 const REGISTRY: Record<string, FieldOptionConfig> = {
   // ── common (every role) ──
@@ -97,9 +72,6 @@ const REGISTRY: Record<string, FieldOptionConfig> = {
   investor_intent: { options: PRIMARY_INTENT_OPTIONS, multiple: false },
 
   // ── b2b enterprise ──
-  b2b_sector: { options: SECTOR_OPTIONS, multiple: false },
-  b2b_sub_sector: { options: ALL_SUB_SECTORS, multiple: false },
-  industry_vertical: { options: ALL_VERTICALS, multiple: false },
   business_type: { options: BUSINESS_TYPES, multiple: false },
   revenue_band: { options: REVENUE_BANDS, multiple: false },
   export_rediness: { options: EXPORT_READINESS, multiple: false },

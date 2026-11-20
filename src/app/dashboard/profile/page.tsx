@@ -129,7 +129,6 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   {
     title: "Business Profile",
     columns: [
-      "b2b_sector",
       "b2b_sub_sector",
       "industry_vertical",
       "business_type",
