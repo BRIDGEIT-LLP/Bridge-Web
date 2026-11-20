@@ -90,12 +90,22 @@ export function VerificationQueueDetailModal({
       setReasonCode("");
       return;
     }
+    let cancelled = false;
     setLoading(true);
     setError(null);
     fetchVerificationQueueDetail(companyId)
-      .then(setDetail)
-      .catch((err: ApiError) => setError(err.message))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setDetail(data);
+      })
+      .catch((err: ApiError) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [companyId]);
 
   const submit = async (action: "APPROVE" | "REJECT") => {
