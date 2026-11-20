@@ -24,6 +24,9 @@ import type {
   UpdateUserLimitConfigPayload,
   UserSuspensionPayload,
   MatchingEngineStats,
+  VerificationCheckStatus,
+  VerificationQueueListItem,
+  VerificationQueueDetail,
 } from "@/types/api.types";
 import type { ProfileField } from "@/services/user.service";
 
@@ -128,6 +131,17 @@ function toUserKycStatus(status: unknown): KycStatus {
   return "PENDING";
 }
 
+/**
+ * Map the backend's latest `user_subscription.status` (or none) to the Members
+ * screen's badge. See the `memberStatus` field doc on `AdminUserListItem`.
+ */
+function toMemberStatus(status: unknown): "MEMBER" | "TRIAL" | "PAYMENT_FAILED" {
+  const s = String(status ?? "").toLowerCase();
+  if (s === "pending") return "TRIAL";
+  if (s === "expired" || s === "cancelled") return "PAYMENT_FAILED";
+  return "MEMBER";
+}
+
 /** Map one raw `get-user-list` row to our AdminUserListItem. */
 function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
   const first = (raw.first_name as string | null) ?? "";
@@ -143,6 +157,9 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     companyName: (raw.company_name as string | undefined) ?? undefined,
     countryCode: (raw.country_code as string | null) ?? null,
     mobileNumber: (raw.mobile_number as string | undefined) ?? undefined,
+    city: (raw.city as string | null) ?? null,
+    joinedAt: (raw.joined_at as string | null) ?? null,
+    memberStatus: toMemberStatus(raw.subscription_status),
     role: normalizeRole(raw.role),
     emailVerified: Boolean(raw.is_email_verified),
     mobileVerified: Boolean(raw.is_mobile_number_verified),
@@ -343,10 +360,77 @@ export async function fetchKycSubmissions(): Promise<KycSubmissionListResponse> 
   return { data: submissions, total: submissions.length };
 }
 
+const VERIFICATION_STATUS_VALUES: VerificationCheckStatus[] = ["NOT_NEEDED", "WAITING", "PASSED", "FAILED", "CHECK"];
+
+function toVerificationStatus(raw: unknown): VerificationCheckStatus {
+  const v = typeof raw === "string" ? raw.toUpperCase() : "";
+  return (VERIFICATION_STATUS_VALUES as string[]).includes(v) ? (v as VerificationCheckStatus) : "WAITING";
+}
+
+/** Map one raw `verification-queue` row (list or detail) to our shared item shape. */
+function toVerificationQueueItem(raw: Record<string, unknown>): VerificationQueueListItem {
+  const funding = (raw.funding ?? {}) as Record<string, unknown>;
+  const toNum = (v: unknown) => (v != null ? Number(v) : null);
+  return {
+    companyId: String(raw.companyId ?? ""),
+    applicantName: String(raw.applicantName ?? ""),
+    photoKey: (raw.profilePhoto as string | null) ?? null,
+    companyName: (raw.companyName as string | null) ?? null,
+    city: (raw.city as string | null) ?? null,
+    role: (raw.role as string | null) ?? null,
+    submittedAt: (raw.submittedAt as string | null) ?? null,
+    gstStatus: toVerificationStatus(raw.gstStatus),
+    mcaStatus: toVerificationStatus(raw.mcaStatus),
+    panStatus: toVerificationStatus(raw.panStatus),
+    nameMatchStatus: toVerificationStatus(raw.nameMatchStatus),
+    vouchedByName: (raw.vouchedByName as string | null) ?? null,
+    kycRejectionCount: Number(raw.kycRejectionCount ?? 0),
+    funding: {
+      stage: (funding.stage as string | null) ?? null,
+      askAmountMin: toNum(funding.askAmountMin),
+      askAmountMax: toNum(funding.askAmountMax),
+      currency: (funding.currency as string | null) ?? null,
+      ticketSizeMin: toNum(funding.ticketSizeMin),
+      ticketSizeMax: toNum(funding.ticketSizeMax),
+      ticketCurrency: (funding.ticketCurrency as string | null) ?? null,
+    },
+  };
+}
+
+/** Fetch the Verification queue list (FRD §12.5), oldest first — the backend already sorts it. */
+export async function fetchVerificationQueue(): Promise<VerificationQueueListItem[]> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_VERIFICATION_QUEUE);
+  const rows = ((data?.data ?? data) as Record<string, unknown>[]) ?? [];
+  return (Array.isArray(rows) ? rows : []).map(toVerificationQueueItem);
+}
+
+/** Fetch one applicant's full detail for the review modal (S49). */
+export async function fetchVerificationQueueDetail(companyId: string): Promise<VerificationQueueDetail> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_VERIFICATION_QUEUE_DETAIL(companyId));
+  const raw = (data?.data ?? data) as Record<string, unknown>;
+  const docsRaw = (raw.documents as Record<string, unknown>[] | null) ?? [];
+  return {
+    ...toVerificationQueueItem(raw),
+    gstin: (raw.gstin as string | null) ?? null,
+    cin: (raw.cin as string | null) ?? null,
+    nameMatchNote: (raw.nameMatchNote as string | null) ?? null,
+    maxRejections: raw.maxRejections != null ? Number(raw.maxRejections) : undefined,
+    documents: (Array.isArray(docsRaw) ? docsRaw : []).map((d) => ({
+      documentType: String(d.documentType ?? ""),
+      status: toReviewStatus(d.status),
+      frontS3Key: (d.frontS3Key as string | null) ?? null,
+      frontFileName: (d.frontFileName as string | null) ?? null,
+      backS3Key: (d.backS3Key as string | null) ?? null,
+      backFileName: (d.backFileName as string | null) ?? null,
+    })),
+  };
+}
+
 /**
  * Approve / reject a whole KYC submission via `review-action` (PUT). The backend
  * keys on `company_id`; a reject must carry a `rejection_reason` (the admin note).
- * `companyId` is now a UUID string.
+ * `companyId` is now a UUID string. Reused as-is by the Verification queue screen —
+ * same company-level approve/reject state machine, no separate endpoint.
  */
 export async function reviewKyc(companyId: string, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
   const body: Record<string, unknown> = {
