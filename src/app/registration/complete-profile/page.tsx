@@ -18,8 +18,9 @@ import "../registration.css";
 import { useOnboarding, type OnboardingData } from "@/components/onboarding/OnboardingProvider";
 import { COUNTRIES, CONTINENTS, continentForCountry, DIAL_CODES } from "@/lib/countries";
 import { phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
-import { PRIMARY_SECTORS, SECTOR_OPTIONS } from "@/lib/b2b-profile-options";
+import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
 import { URL_REGEX } from "@/lib/startup-profile-options";
+import { weightedCompleteness } from "@/lib/profile-completeness";
 import {
   StartupProfileFields,
   defaultStartupValues,
@@ -280,7 +281,6 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
       organization_name: b.businessName,
       linkedin_profile_url: b.linkedinUrl,
       company_website_url: b.websiteUrl,
-      b2b_sector: b.sector,
       b2b_sub_sector: b.subSector,
       business_type: b.businessType,
       industry_vertical: b.industryVertical,
@@ -448,7 +448,6 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
   if (role === "b2b_enterprise") {
     const b2b: Partial<B2BValues> = {};
     if (has("organization_name")) b2b.businessName = str("organization_name");
-    if (has("b2b_sector")) b2b.sector = str("b2b_sector");
     if (has("b2b_sub_sector")) b2b.subSector = str("b2b_sub_sector");
     if (has("business_type")) b2b.businessType = str("business_type");
     if (has("industry_vertical")) b2b.industryVertical = str("industry_vertical");
@@ -512,48 +511,40 @@ function buildFormDefaults(data: OnboardingData): CompleteProfileForm {
   };
 }
 
-/** True when a watched form value counts as "filled in" for the completeness ring. */
-function hasValue(v: unknown): boolean {
-  if (v === undefined || v === null) return false;
-  if (typeof v === "string") return v.trim() !== "";
-  if (Array.isArray(v)) return !isBlank(v);
-  return true;
-}
-
 /**
- * Completeness ring value for the new UI. Approximation: share of filled leaf values across
- * the shared fields plus the active role section. (The prototype weights required/recommended/
- * optional 70/20/10; the real form's required rules are enforced by validation instead.)
+ * Completeness ring value. Weighted like the prototype: required fields 70%, recommended (LinkedIn,
+ * website, funds raised) 20%, optional 10%. Only the fields the new design shows count, so the ring
+ * reaches 100% when every visible field is filled; it starts from the fields on this Profile step.
  */
 function profileCompleteness(values: CompleteProfileForm, role: string): number {
-  // Only the fields the new design shows count, so the ring reaches 100% when every visible field is filled.
-  // (It used to include the photo and country from the collapsed "previous form" block and every optional
-  // legacy field, which most members never open, so it could not reach 100%.)
   const startup = values.startup;
   const investor = values.investor;
   const b2b = values.b2b;
   const sectionLinks = role === "startup" ? startup : role === "investor" ? investor : role === "b2b_enterprise" ? b2b : undefined;
-  const roleLeaves: unknown[] =
-    role === "startup"
-      ? [startup?.fundingStage, startup?.raisingCr || startup?.fundingMax, startup?.useOfFunds, startup?.teamSize, startup?.yearOfIncorporation, startup?.fundsRaised]
-      : role === "investor"
-        ? [investor?.investorType, investor?.investmentStages, investor?.ticketMinCr || investor?.ticketMin, investor?.ticketMaxCr || investor?.ticketMax, investor?.geoCountries, investor?.investmentThesis, investor?.numberOfInvestments]
-        : role === "b2b_enterprise"
-          ? [b2b?.sector, b2b?.subSector, b2b?.revenueBand, b2b?.yearsInOperation, b2b?.moq, b2b?.exportReadiness, b2b?.geoCountries, b2b?.productsServices, b2b?.businessRequirements]
-          : [];
-  const leaves: unknown[] = [
-    values.firstName,
-    values.lastName,
-    values.state,
-    values.city,
-    values.primarySectors,
-    values.bio,
-    sectionLinks?.linkedinUrl,
-    sectionLinks?.websiteUrl,
-    ...roleLeaves,
-  ];
-  const filled = leaves.filter(hasValue).length;
-  return Math.round((filled / leaves.length) * 100);
+
+  const required: unknown[] = [values.state, values.city, values.primarySectors, values.bio];
+  const recommended: unknown[] = [sectionLinks?.linkedinUrl, sectionLinks?.websiteUrl];
+  const optional: unknown[] = [];
+
+  if (role === "startup") {
+    required.push(startup?.fundingStage, startup?.raisingCr || startup?.fundingMax, startup?.useOfFunds, startup?.teamSize, startup?.yearOfIncorporation);
+    recommended.push(startup?.fundsRaised);
+    optional.push(startup?.coFounders);
+  } else if (role === "investor") {
+    required.push(
+      investor?.investorType,
+      investor?.ticketMinCr || investor?.ticketMin,
+      investor?.ticketMaxCr || investor?.ticketMax,
+      investor?.investmentStages,
+      investor?.investmentThesis,
+      investor?.geoCountries,
+    );
+    optional.push(investor?.numberOfInvestments);
+  } else if (role === "b2b_enterprise") {
+    required.push(b2b?.subSector, b2b?.revenueBand, b2b?.yearsInOperation, b2b?.moq, b2b?.exportReadiness, b2b?.productsServices, b2b?.businessRequirements, b2b?.geoCountries);
+    optional.push(b2b?.operationalCapacity);
+  }
+  return weightedCompleteness({ required, recommended, optional });
 }
 
 export default function CompleteProfilePage() {
@@ -636,14 +627,9 @@ export default function CompleteProfilePage() {
   const aboutComplete =
     !!allValues?.state?.trim() &&
     !!allValues?.city?.trim() &&
-    (role === "b2b_enterprise" ? !!allValues?.b2b?.sector : (allValues?.primarySectors?.length ?? 0) > 0) &&
+    (allValues?.primarySectors?.length ?? 0) > 0 &&
     !!allValues?.bio?.trim();
 
-  // Business owners choose one Sector (About you); mirror it into primarySectors so it is saved on the profile.
-  const b2bSector = useWatch({ control, name: "b2b.sector" });
-  useEffect(() => {
-    if (role === "b2b_enterprise" && b2bSector) setValue("primarySectors", [b2bSector], { shouldValidate: true });
-  }, [role, b2bSector, setValue]);
   const roleTabLabel = role === "startup" ? "Your raise" : role === "investor" ? "How you invest" : "Your business";
   const bio = useWatch({ control, name: "bio" });
   const bioChars = (bio ?? "").length;
@@ -729,7 +715,7 @@ export default function CompleteProfilePage() {
     const first = firstError(formErrors);
     if (!first) return;
     // Reveal the tab that holds the offending field before focusing it.
-    setTab(/^(startup|investor|b2b)\./.test(first.path) && first.path !== "b2b.sector" ? "role" : "about");
+    setTab(/^(startup|investor|b2b)\./.test(first.path) ? "role" : "about");
     toast.error(first.message);
     // The previous-UI fields live in a collapsible block; let React open it before focusing.
     setTimeout(() => {
@@ -895,50 +881,8 @@ export default function CompleteProfilePage() {
             />
           </div>
 
-          {/* Sectors: same primarySectors field as before, shown as chips. Business owners pick one Sector from a list
-              instead (b2b.sector; primarySectors is filled from that choice). */}
-          {role === "b2b_enterprise" && (
-            <Controller
-              control={control}
-              name="b2b.sector"
-              rules={{ required: "Select a sector." }}
-              render={({ field }) => (
-                <div className="flex flex-col gap-2" id="sector" tabIndex={-1}>
-                  <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">Sectors</span>
-                  <div className="flex flex-wrap gap-2">
-                    {SECTOR_OPTIONS.map((o) => {
-                      const on = field.value === o.value;
-                      return (
-                        <button
-                          key={o.value}
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() => {
-                            if (on) return;
-                            field.onChange(o.value);
-                            // Reset dependent selections (asked under Your business) when the sector changes.
-                            setValue("b2b.subSector", "", { shouldValidate: false });
-                            setValue("b2b.industryVertical", "", { shouldValidate: false });
-                          }}
-                          className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                            on
-                              ? "border-primary bg-primary-container font-semibold text-primary"
-                              : "border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:border-primary/60"
-                          }`}
-                        >
-                          {o.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {errors.b2b?.sector?.message && (
-                    <span className="px-1 text-xs font-medium text-error">{errors.b2b.sector.message}</span>
-                  )}
-                </div>
-              )}
-            />
-          )}
-          {role !== "b2b_enterprise" && <Controller
+          {/* Sectors: one shared multi-select list for every role, saved in primary_sector. */}
+          <Controller
             control={control}
             name="primarySectors"
             rules={{ validate: (v) => v.length > 0 || "Select at least one primary sector." }}
@@ -970,7 +914,7 @@ export default function CompleteProfilePage() {
                 )}
               </div>
             )}
-          />}
+          />
 
           {/* Short Bio */}
           <div className="flex flex-col gap-1">

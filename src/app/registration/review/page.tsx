@@ -19,7 +19,8 @@ import { PRIMARY_INTENT_OPTIONS } from "@/lib/investor-profile-options";
 import { BUSINESS_INTENTS } from "@/lib/b2b-profile-options";
 import { roleSection } from "@/components/onboarding/ProfilePreview";
 import { COUNTRIES } from "@/lib/countries";
-import { PRIMARY_SECTORS, SECTOR_OPTIONS } from "@/lib/b2b-profile-options";
+import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
+import { weightedCompleteness } from "@/lib/profile-completeness";
 import type { CompleteProfileForm } from "@/components/onboarding/StartupProfileFields";
 import type { KycDocFile, KycRequirementsData, SaveKycInfoPayload } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -130,8 +131,7 @@ export default function ReviewPage() {
   };
   const COMMON_COLUMNS = new Set([
     // B2B sector is the "Sectors" row under About you; the business name is the Company row under Account.
-    ...(role === "b2b_enterprise" ? ["b2b_sector"] : []),
-    "first_name", "last_name", "profile_photo", "intro_video", "short_bio", "country", "continent", "state", "city",
+        "first_name", "last_name", "profile_photo", "intro_video", "short_bio", "country", "continent", "state", "city",
     "mobile_number", "country_code", "company_email", "primary_sector", "organization_name", "intent_note",
     "startup_intent", "investor_intent", "b2b_intent", "incorporation_certificate", "pitch_deck_certificate",
     // LinkedIn / website are shown under "About you".
@@ -211,7 +211,7 @@ export default function ReviewPage() {
       href: "/registration/complete-profile",
       rows: [
         ["Based in", based || (country ? labelOf(COUNTRIES, country) : "")],
-        ["Sectors", sectors.map((v) => labelOf(role === "b2b_enterprise" ? SECTOR_OPTIONS : PRIMARY_SECTORS, v)).join(", ")],
+        ["Sectors", sectors.map((v) => labelOf(PRIMARY_SECTORS, v)).join(", ")],
         ["Bio", fieldText("short_bio") || show(data.bio)],
         ["LinkedIn", fieldText("linkedin_profile_url") || show(roleValues.linkedinUrl)],
         ["Website", fieldText("company_website_url") || show(roleValues.websiteUrl)],
@@ -226,34 +226,40 @@ export default function ReviewPage() {
     },
   ];
 
-  // Same approximation the Your profile ring uses: share of filled shared fields plus the role section.
-  const filled = (v: unknown) => (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && String(v).trim() !== "");
-  // Same fields as the Profile step's ring (only what the new design shows), so the two agree and 100% is reachable.
+  // Same weighted formula as the Profile step's ring (required 70 / recommended 20 / optional 10).
   const rv = roleValues as Record<string, unknown>;
-  const localRoleLeaves: unknown[] =
-    role === "startup"
-      ? [rv.fundingStage, rv.raisingCr || rv.fundingMax, rv.useOfFunds, rv.teamSize, rv.yearOfIncorporation, rv.fundsRaised]
-      : role === "investor"
-        ? [rv.investorType, rv.investmentStages, rv.ticketMinCr || rv.ticketMin, rv.ticketMaxCr || rv.ticketMax, rv.geoCountries, rv.investmentThesis, rv.numberOfInvestments]
-        : [rv.sector, rv.subSector, rv.revenueBand, rv.yearsInOperation, rv.moq, rv.exportReadiness, rv.geoCountries, rv.productsServices, rv.businessRequirements];
-  const serverRoleColumns =
-    role === "startup"
-      ? ["funding_stage", "funding_ask_amt_max", "use_of_funds", "team_size_min"]
-      : role === "investor"
-        ? ["investor_type", "prefrerred_investment_stage", "ticket_size_amt_min", "ticket_size_amt_max", "geographic_investment_preference", "investment_thesis", "number_of_investments_to_date"]
-        : ["b2b_sector", "b2b_sub_sector", "revenue_band", "years_in_operation", "min_order_quantity", "export_rediness", "b2b_geography_country", "products_ervice_Offered", "business_requirements"];
-  const leaves =
-    profileFields && !hasLocalRole
-      ? [
-          field("first_name"), field("last_name"), field("state"), field("city"), field("primary_sector"), field("short_bio"),
-          field("linkedin_profile_url"), field("company_website_url"),
-          ...serverRoleColumns.map((c) => field(c)),
-        ]
-      : [
-          data.firstName, data.lastName, data.state, data.city, data.primarySectors, data.bio, rv.linkedinUrl, rv.websiteUrl,
-          ...localRoleLeaves,
-        ];
-  const pct = leaves.length ? Math.round((leaves.filter(filled).length / leaves.length) * 100) : 0;
+  const useServer = !!profileFields && !hasLocalRole;
+  // Each entry: [local form value, server column] so both sources use the same grouping.
+  const pick = (local: unknown, column: string) => (useServer ? field(column) : local);
+  const required: unknown[] = [
+    pick(data.state, "state"), pick(data.city, "city"), pick(data.primarySectors, "primary_sector"), pick(data.bio, "short_bio"),
+  ];
+  const recommended: unknown[] = [pick(rv.linkedinUrl, "linkedin_profile_url"), pick(rv.websiteUrl, "company_website_url")];
+  const optional: unknown[] = [];
+  if (role === "startup") {
+    required.push(
+      pick(rv.fundingStage, "funding_stage"), pick(rv.raisingCr || rv.fundingMax, "funding_ask_amt_max"),
+      pick(rv.useOfFunds, "use_of_funds"), pick(rv.teamSize, "team_size_min"), pick(rv.yearOfIncorporation, "year_of_incorporation"),
+    );
+    recommended.push(pick(rv.fundsRaised, "funds_raised"));
+    optional.push(pick(rv.coFounders, "co_founders"));
+  } else if (role === "investor") {
+    required.push(
+      pick(rv.investorType, "investor_type"), pick(rv.ticketMinCr || rv.ticketMin, "ticket_size_amt_min"),
+      pick(rv.ticketMaxCr || rv.ticketMax, "ticket_size_amt_max"), pick(rv.investmentStages, "prefrerred_investment_stage"),
+      pick(rv.investmentThesis, "investment_thesis"), pick(rv.geoCountries, "geographic_investment_preference"),
+    );
+    optional.push(pick(rv.numberOfInvestments, "number_of_investments_to_date"));
+  } else {
+    required.push(
+      pick(rv.subSector, "b2b_sub_sector"), pick(rv.revenueBand, "revenue_band"), pick(rv.yearsInOperation, "years_in_operation"),
+      pick(rv.moq, "min_order_quantity"), pick(rv.exportReadiness, "export_rediness"),
+      pick(rv.productsServices, "products_ervice_Offered"), pick(rv.businessRequirements, "business_requirements"),
+      pick(rv.geoCountries, "b2b_geography_country"),
+    );
+    optional.push(pick(rv.operationalCapacity, "operational_capacity_description"));
+  }
+  const pct = weightedCompleteness({ required, recommended, optional });
 
   const [loggingOut, setLoggingOut] = useState(false);
   const handleLogout = async () => {

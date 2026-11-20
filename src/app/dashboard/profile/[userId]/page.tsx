@@ -34,7 +34,7 @@ const HIDDEN_FIELDS = new Set(["password", "profile_photo"]);
 /** Columns whose presence identifies the profile's role (mirrors the section
  *  groupings on My Profile — there's no explicit "role" field in this response). */
 const ROLE_SIGNAL_COLUMNS: { columns: string[]; role: Role }[] = [
-  { columns: ["b2b_sector", "b2b_sub_sector", "b2b_intent"], role: "b2b_enterprise" },
+  { columns: ["b2b_sub_sector", "b2b_intent"], role: "b2b_enterprise" },
   { columns: ["investor_type", "ticket_size_amt_min", "investor_intent"], role: "investor" },
   { columns: ["funding_stage", "startup_intent", "startup_industry_sector"], role: "startup" },
 ];
