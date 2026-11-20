@@ -191,7 +191,16 @@ const LIMIT_EMPTY: LimitFields = {
  * The limit config section is unrelated and still fetches from
  * /admin/users/:userId/limit-config when the drawer opens.
  */
-export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | null; onClose: () => void }) {
+export function UserDetailDrawer({
+  user,
+  onClose,
+  onToggleSuspension,
+}: {
+  user: AdminUserListItem | null;
+  onClose: () => void;
+  /** Opens the suspend/reactivate confirm dialog for `user`. Omit to hide the action (e.g. when `user.userId` is missing). */
+  onToggleSuspension?: () => void;
+}) {
   // ── Role details + suspension history ─────────────────────────────────────
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -330,7 +339,22 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
       onClose={onClose}
       title={user?.name ?? "User profile"}
       subtitle={user?.companyName}
-      footer={null}
+      footer={
+        user && onToggleSuspension ? (
+          <button
+            type="button"
+            onClick={onToggleSuspension}
+            className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-colors ${
+              user.suspended
+                ? "bg-primary text-on-primary hover:bg-primary-dim"
+                : "border border-error/30 text-error hover:bg-error/10"
+            }`}
+          >
+            <Icon name={user.suspended ? "restart_alt" : "block"} size={18} />
+            {user.suspended ? "Reactivate user" : "Suspend user"}
+          </button>
+        ) : null
+      }
     >
       {user && (
         <>

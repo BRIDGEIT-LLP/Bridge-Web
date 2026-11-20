@@ -35,8 +35,8 @@ const ADMIN_OPT: NavItem[] = [
   DASHBOARD,
   { key: "matching-engine", label: "Matching Engine", icon: "join_inner", route: "/dashboard/matching-engine" },
   { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
-  { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
-  { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
+  { key: "members", label: "Members", icon: "group", route: "/dashboard/members" },
+  { key: "verification-queue", label: "Verification Queue", icon: "verified_user", route: "/dashboard/verification-queue" },
   { key: "role-switch", label: "Role Switch", icon: "swap_horiz", route: "/dashboard/role-switch" },
   { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   PROFILE,
@@ -46,8 +46,8 @@ const SUPER_ADMIN_OPT: NavItem[] = [
   DASHBOARD,
   { key: "matching-engine", label: "Matching Engine", icon: "join_inner", route: "/dashboard/matching-engine" },
   { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
-  { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
-  { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
+  { key: "members", label: "Members", icon: "group", route: "/dashboard/members" },
+  { key: "verification-queue", label: "Verification Queue", icon: "verified_user", route: "/dashboard/verification-queue" },
   { key: "role-switch", label: "Role Switch", icon: "swap_horiz", route: "/dashboard/role-switch" },
   { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   { key: "admin-management", label: "Admin Management", icon: "admin_panel_settings", route: "/dashboard/admin-management" },
@@ -103,6 +103,30 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
     PROFILE,
   ],
 };
+
+/** Primary mobile bottom-tab entry. */
+export interface BottomTab {
+  key: string;
+  label: string;
+  icon: string;
+  route: string;
+}
+
+/**
+ * Bottom tab bar (mobile) for the three user roles. A trailing "More" tab, added by
+ * the layout, opens the full sidebar drawer. Staff roles have 8+ admin sections so
+ * they keep the drawer only — no entry here means no bottom bar.
+ */
+const USER_BOTTOM_TABS: BottomTab[] = [
+  { key: "home", label: "Home", icon: "home", route: "/dashboard" },
+  { key: "introductions", label: "Introductions", icon: "group_add", route: "/dashboard/explore" },
+  { key: "requests", label: "Requests", icon: "inbox", route: "/dashboard/connections" },
+  { key: "rooms", label: "Rooms", icon: "handshake", route: "/dashboard/deal-room" },
+];
+
+export function getBottomTabsForRole(role: Role): BottomTab[] {
+  return role === "startup" || role === "investor" || role === "b2b_enterprise" ? USER_BOTTOM_TABS : [];
+}
 
 /** Nav items for a role (empty array if the role is unknown). */
 export function getNavForRole(role: Role): NavItem[] {

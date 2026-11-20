@@ -155,6 +155,11 @@ export const API_ENDPOINTS = {
   ADMIN_KYC_DOC_ACTION: `${ADMIN}/kyc/document-action`,
   // Approve / reject a whole submission (PUT, body: { company_id, action, rejection_reason? }).
   ADMIN_KYC_REVIEW_ACTION: `${ADMIN}/kyc/review-action`,
+  // Verification queue (FRD §12.5) — replaces KYC Review's list. GET.
+  ADMIN_VERIFICATION_QUEUE: `${ADMIN}/verification-queue`,
+  // One applicant's full detail for the review modal (GET). Approve/reject reuses
+  // ADMIN_KYC_REVIEW_ACTION above — same company-level state machine.
+  ADMIN_VERIFICATION_QUEUE_DETAIL: (companyId: string) => `${ADMIN}/verification-queue/${companyId}`,
   // Per-user connection limit config (GET to fetch, PUT to create/update).
   ADMIN_USER_LIMIT_CONFIG: (id: string) => `${ADMIN}/users/${id}/limit-config`,
 
@@ -298,3 +303,15 @@ export const API_ENDPOINTS = {
   // Fetch the authenticated user's active subscription with plan details (GET).
   SUBSCRIPTION_MY: `${SUBSCRIPTIONS}/my`,
 } as const;
+
+/** Reject reasons for the Verification queue (FRD §12.5, §4.7). Keep in sync with
+ *  Bridge-Server's VERIFICATION_REJECTION_REASONS (src/utils/constant.js). */
+export const VERIFICATION_REJECTION_REASONS = [
+  { code: "GSTIN_CANCELLED", label: "GSTIN cancelled or inactive" },
+  { code: "NAME_MISMATCH", label: "Name does not match GST/MCA/PAN records" },
+  { code: "DOCUMENT_UNCLEAR", label: "Document illegible or incomplete" },
+  { code: "DOCUMENT_EXPIRED", label: "Document expired" },
+  { code: "INFORMATION_INCOMPLETE", label: "Required information missing" },
+  { code: "SUSPECTED_FRAUD", label: "Suspected fraud" },
+  { code: "OTHER", label: "Other" },
+] as const;

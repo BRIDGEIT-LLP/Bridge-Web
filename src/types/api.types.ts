@@ -720,6 +720,17 @@ export interface AdminUserListItem {
   photoKey?: string | null;
   /** Account state, derived from the user's active flag. */
   suspended: boolean;
+  /** `user.city`, shown on the Members screen. */
+  city?: string | null;
+  /** `user.created_at` — when the user joined, shown on the Members screen. */
+  joinedAt?: string | null;
+  /**
+   * Best-effort status for the Members screen's colored badge, derived from the
+   * user's latest `user_subscription.status` row: no row or `active` → MEMBER,
+   * `pending` → TRIAL, `expired`/`cancelled` → PAYMENT_FAILED. Billing doesn't yet
+   * have real trial/payment-failure states, so this is an approximation.
+   */
+  memberStatus: "MEMBER" | "TRIAL" | "PAYMENT_FAILED";
 }
 
 /** Body of PUT /admin/users/suspension. `suspensionReason` is required when suspending. */
@@ -872,6 +883,65 @@ export interface ReviewKycResponse {
   message?: string;
   data?: unknown;
 }
+
+/**
+ * Per-check result on the Verification queue (FRD §12.5). 'CHECK' is distinct from
+ * 'FAILED' — the compare found a difference worth a human look, not a hard mismatch.
+ */
+export type VerificationCheckStatus = "NOT_NEEDED" | "WAITING" | "PASSED" | "FAILED" | "CHECK";
+
+/** Funding size shown on the Verification queue (role-dependent: raise ask vs. ticket size). */
+export interface VerificationApplicantFunding {
+  stage?: string | null;
+  askAmountMin?: number | null;
+  askAmountMax?: number | null;
+  currency?: string | null;
+  ticketSizeMin?: number | null;
+  ticketSizeMax?: number | null;
+  ticketCurrency?: string | null;
+}
+
+/** One row of the Verification queue list (replaces KycSubmissionListItem for this screen). */
+export interface VerificationQueueListItem {
+  companyId: string;
+  applicantName: string;
+  photoKey?: string | null;
+  companyName?: string | null;
+  /** `user.city` — shown next to company/role in the detail modal's subtitle. */
+  city?: string | null;
+  /** company_role_master.role_code, e.g. STARTUP / INVESTOR / B2B. */
+  role?: string | null;
+  submittedAt?: string | null;
+  gstStatus: VerificationCheckStatus;
+  mcaStatus: VerificationCheckStatus;
+  panStatus: VerificationCheckStatus;
+  nameMatchStatus: VerificationCheckStatus;
+  /** Free text from registration's "Who vouched for you?" field — no vouch/referral
+   *  system exists yet (FRD §3.7/§12.7), so this is display-only, never a member link. */
+  vouchedByName?: string | null;
+  kycRejectionCount: number;
+  funding: VerificationApplicantFunding;
+}
+
+/** One document row in the applicant detail modal (S49). */
+export interface VerificationQueueDocument {
+  documentType: string;
+  status: KycReviewStatus;
+  frontS3Key?: string | null;
+  frontFileName?: string | null;
+  backS3Key?: string | null;
+  backFileName?: string | null;
+}
+
+/** Full applicant detail for the review modal (S49), fetched per company. */
+export interface VerificationQueueDetail extends VerificationQueueListItem {
+  gstin?: string | null;
+  cin?: string | null;
+  nameMatchNote?: string | null;
+  maxRejections?: number;
+  documents: VerificationQueueDocument[];
+}
+
 /* ------------------------------------------------------------------ *
  * Explore — Matching Engine results (swipe deck + grid)
  * Mirrors the `/matches` response: a list of compatibility matches for the

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { BottomTabBar, type BottomTabItem } from "@/components/ui/BottomTabBar";
+import { getBottomTabsForRole } from "@/lib/dashboard-nav";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { isUserRole } from "@/lib/roles";
 import { DashboardSidebar } from "@/components/layout/sidebar";
@@ -36,6 +38,23 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
+
+  const pathname = usePathname();
+  const bottomTabs = role ? getBottomTabsForRole(role) : [];
+  const isTabActive = (route: string) =>
+    route === "/dashboard" ? pathname === route : pathname.startsWith(route);
+  const tabItems: BottomTabItem[] = [
+    ...bottomTabs.map((t) => ({
+      key: t.key,
+      label: t.label,
+      icon: t.icon,
+      href: t.route,
+      active: isTabActive(t.route),
+      // Badge counts are intentionally off for now — pass `badge` here once the
+      // dashboard/API counts are ready.
+    })),
+    { key: "more", label: "More", icon: "more_horiz", onClick: () => setNavOpen(true) },
+  ];
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -74,6 +93,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <DashboardNavbar onMenuClick={() => setNavOpen(true)} />
         <div className="thin-scrollbar flex-1 overflow-y-auto">{children}</div>
+        {bottomTabs.length > 0 && <BottomTabBar items={tabItems} ariaLabel="Primary navigation" />}
       </div>
     </div>
   );

@@ -228,6 +228,12 @@ function NavbarProfile() {
  * followed by the signed-in identity.
  */
 export function DashboardNavbar({ onMenuClick }: { onMenuClick?: () => void }) {
+    const pathname = usePathname();
+    // The Members and Verification Queue screens have their own in-page search (or none,
+    // per their design) — the global member-search box isn't part of either mockup there.
+    const hideGlobalSearch =
+        pathname?.startsWith("/dashboard/members") || pathname?.startsWith("/dashboard/verification-queue");
+
     return (
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-outline-variant/30 bg-surface-container-lowest px-3 sm:px-4 lg:grid lg:grid-cols-[1fr_3fr_1fr] lg:px-6">
             <div className="flex shrink-0 items-center">
@@ -241,7 +247,7 @@ export function DashboardNavbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 </button>
             </div>
             <div className="min-w-0 flex-1 lg:w-full lg:justify-self-center">
-                <NavbarSearch />
+                {!hideGlobalSearch && <NavbarSearch />}
             </div>
             <div className="flex min-w-0 shrink-0 items-center gap-1 justify-self-end sm:gap-2">
                 <button
