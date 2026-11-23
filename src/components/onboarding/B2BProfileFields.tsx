@@ -254,7 +254,8 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
           {...register("b2b.operationalCapacity")}
         />
 
-        {/* NOT IN NEW UI: kept from the previous UI. Everything in here is optional. */}
+        {/* HIDDEN FOR NOW: "More business details" collapsible pane (kept from the previous UI, all optional).
+            To show it again, delete this comment's opening and closing markers (the "HIDDEN FOR NOW" line and the "END HIDDEN" line).
         <details
           open={legacyOpen || legacyHasError}
           onToggle={(ev) => setLegacyOpen((ev.currentTarget as HTMLDetailsElement).open)}
@@ -291,6 +292,7 @@ export function B2BProfileFields({ control, register, setValue, errors, hideInte
             />
           </div>
         </details>
+        END HIDDEN */}
       </div>
     );
   }
