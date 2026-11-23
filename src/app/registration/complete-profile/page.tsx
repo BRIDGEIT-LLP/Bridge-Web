@@ -964,8 +964,10 @@ export default function CompleteProfilePage() {
             </div>
           )}
 
-          {/* NOT IN NEW UI: everything below is from the previous UI and is kept (photo, intro video, locked account
-              panel, first/last name, country, continent). The block opens itself when one of them has an error. */}
+          {/* HIDDEN FOR NOW: "More about you" collapsible pane (previous UI: photo, intro video, locked account
+              panel, first/last name, country, continent). It opens itself when one of them has an error.
+              To show it again, delete this comment's opening and closing markers (the "HIDDEN FOR NOW" line
+              and the "END HIDDEN" line). Inner comments below were converted to plain text so this comment can nest them.
           <details
             open={
               aboutLegacyOpen ||
@@ -979,8 +981,8 @@ export default function CompleteProfilePage() {
             </summary>
             <div className="mt-4 flex flex-col gap-6">
 
-          {/* NOT IN NEW UI: profile photo (present in the previous UI, kept) */}
-          {/* Profile picture */}
+          NOT IN NEW UI: profile photo (present in the previous UI, kept)
+          Profile picture
           <div className="flex flex-col gap-3">
             <span className="px-1 text-xs font-bold tracking-wide text-on-surface-variant">
               Profile Photo
@@ -991,8 +993,8 @@ export default function CompleteProfilePage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photo} alt="Profile preview" className="size-full object-cover" />
                 ) : (
-                  /* No file picked this session — show the already-saved photo, which
-                     `Avatar` fetches from its storage key via /file/file-preview. */
+                  // No file picked this session — show the already-saved photo, which
+                  // `Avatar` fetches from its storage key via /file/file-preview.
                   <Avatar photoKey={photoKey} alt="Profile photo" className="size-full">
                     <Icon name="person" size={36} className="text-outline-variant" />
                   </Avatar>
@@ -1058,8 +1060,8 @@ export default function CompleteProfilePage() {
             </div>
           </div>
 
-          {/* NOT IN NEW UI: short intro video (present in the previous UI, kept) */}
-          {/* Short intro video — optional */}
+          NOT IN NEW UI: short intro video (present in the previous UI, kept)
+          Short intro video — optional
           <Controller
             control={control}
             name="introVideo"
@@ -1072,8 +1074,8 @@ export default function CompleteProfilePage() {
             )}
           />
 
-          {/* NOT IN NEW UI: the large locked "Account Details" panel (new UI shows a one-line summary). Kept from the previous UI. */}
-          {/* Account details — captured at registration, shown locked */}
+          NOT IN NEW UI: the large locked "Account Details" panel (new UI shows a one-line summary). Kept from the previous UI.
+          Account details — captured at registration, shown locked
           <div className="flex flex-col gap-3">
             <span className="px-1 text-xs font-bold tracking-wide text-on-surface-variant">
               Account Details
@@ -1199,9 +1201,9 @@ export default function CompleteProfilePage() {
             </div>
           </div>
 
-          {/* NOT IN NEW UI: first/last name are asked on the Apply screen (kept here prefilled), and country/continent
-              replace the new UI's state/city. Both are from the previous UI. */}
-          {/* Personal info */}
+          NOT IN NEW UI: first/last name are asked on the Apply screen (kept here prefilled), and country/continent
+          replace the new UI's state/city. Both are from the previous UI.
+          Personal info
           <div className="flex flex-col gap-3">
             <span className="px-1 text-xs font-bold tracking-wide text-on-surface-variant">
               Personal Info
@@ -1268,6 +1270,7 @@ export default function CompleteProfilePage() {
 
             </div>
           </details>
+          END HIDDEN */}
           </div>
 
           <div className={tab === "role" ? "flex flex-col gap-6" : "hidden"}>

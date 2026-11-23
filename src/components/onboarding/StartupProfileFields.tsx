@@ -682,7 +682,9 @@ export function StartupProfileFields({ control, register, errors, hideIntent = f
           {...register("startup.coFounders")}
         />
 
-        {/* NOT IN NEW UI: everything below comes from the previous UI and is kept so no data is lost. */}
+        {/* HIDDEN FOR NOW: "More startup details" collapsible pane (kept from the previous UI).
+            To show it again, delete this comment's opening and closing markers (the "HIDDEN FOR NOW" line and the "END HIDDEN" line).
+            Note: it holds askField (funding min/max, which can stand in for "Raising (₹ Cr)"), foundersField and descField.
         <details
           open={legacyOpen || legacyHasError}
           onToggle={(ev) => setLegacyOpen((ev.currentTarget as HTMLDetailsElement).open)}
@@ -692,13 +694,14 @@ export function StartupProfileFields({ control, register, errors, hideIntent = f
             More startup details (from the previous form, not in the new design)
           </summary>
           <div className="mt-4 flex flex-col gap-6">
-            {/* {industryField} */}
+            industryField is already commented out here (was: {industryField})
             {askField}
             {foundersField}
             {descField}
-            {/* Incorporation certificate and pitch deck are KYC documents now: uploaded on the Documents step. */}
+            Incorporation certificate and pitch deck are KYC documents now: uploaded on the Documents step.
           </div>
         </details>
+        END HIDDEN */}
       </div>
     );
   }
