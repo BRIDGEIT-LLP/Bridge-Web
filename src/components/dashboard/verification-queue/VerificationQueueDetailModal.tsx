@@ -12,6 +12,7 @@ import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewMod
 import { fetchVerificationQueueDetail, reviewKyc } from "@/services/admin.service";
 import { VerificationStatusPill } from "./VerificationStatusPill";
 import { formatApplicantSize, queueRoleLabel } from "@/lib/verification-queue-format";
+import { emitVerificationQueueChanged } from "@/lib/verification-queue-events";
 import { formatDateTime } from "@/lib/admin-format";
 import { VERIFICATION_REJECTION_REASONS } from "@/config/constant";
 import type { VerificationQueueDetail } from "@/types/api.types";
@@ -119,6 +120,7 @@ export function VerificationQueueDetailModal({
     try {
       await reviewKyc(detail.companyId, { action, note: action === "REJECT" ? reasonLabel : undefined });
       toast.success(action === "APPROVE" ? "Applicant approved." : "Applicant rejected.");
+      emitVerificationQueueChanged();
       onReviewed();
       onClose();
     } catch (err) {

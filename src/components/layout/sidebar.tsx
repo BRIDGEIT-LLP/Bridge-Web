@@ -10,10 +10,12 @@ import { SwitchUserModal } from "@/components/dashboard/SwitchUserModal";
 import { getNavForRole, SUPPORT_NAV } from "@/lib/dashboard-nav";
 import { isStaffRole, isUserRole } from "@/lib/roles";
 import { fetchVerificationQueue } from "@/services/admin.service";
+import { onVerificationQueueChanged } from "@/lib/verification-queue-events";
 
 /** Small count pill for a sidebar nav row — same look as the mobile BottomTabBar's
- *  badge, but inline (after the label) instead of overlaid on the icon, since rows
- *  here are full-width with room for it. Hidden when the rail is collapsed. */
+ *  badge (src/components/ui/BottomTabBar.tsx), but inline (after the label) instead
+ *  of overlaid on the icon, since rows here are full-width with room for it. Hidden
+ *  when the rail is collapsed. */
 function NavBadge({ count }: { count: number }) {
   return (
     <span
@@ -70,20 +72,27 @@ export function DashboardSidebar({ open = false, onClose }: DashboardSidebarProp
     onClose?.();
   }, [pathname, onClose]);
 
-  // Re-fetches the pending count on every navigation (staff only) — cheapest way to
-  // keep it current after a review is actioned, without a dedicated count endpoint.
+  // Re-fetches the pending count on every navigation (staff only), and also right
+  // after a review is actioned via emitVerificationQueueChanged() — approving/rejecting
+  // in the detail modal doesn't change the route, so the nav-triggered effect alone
+  // would leave the badge stale until the next navigation.
   useEffect(() => {
     if (!isStaffRole(role)) return;
     let cancelled = false;
-    fetchVerificationQueue()
-      .then((items) => {
-        if (!cancelled) setVerificationQueueCount(items.length);
-      })
-      .catch(() => {
-        // Badge is a non-critical hint — stay silent and keep the last known count.
-      });
+    const refresh = () => {
+      fetchVerificationQueue()
+        .then((items) => {
+          if (!cancelled) setVerificationQueueCount(items.length);
+        })
+        .catch(() => {
+          // Badge is a non-critical hint — stay silent and keep the last known count.
+        });
+    };
+    refresh();
+    const unsubscribe = onVerificationQueueChanged(refresh);
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [role, pathname]);
 

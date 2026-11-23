@@ -109,6 +109,22 @@ export function isStaffRole(role: Role | null | undefined): boolean {
   return role === "super_admin" || role === "admin";
 }
 
+/**
+ * Back-office label overlay on ROLE_META — for screens about a person's standing
+ * within their company (Members, Verification queue), as opposed to self-service
+ * company-type screens (Switch Role / Switch User) where ROLE_META's own label
+ * ("Startup" / "B2B Enterprise") is what's being chosen and must stay as-is.
+ */
+const INTERNAL_ROLE_LABELS: Partial<Record<Role, string>> = {
+  startup: "Founder",
+  b2b_enterprise: "Owner",
+};
+
+export function internalRoleLabel(role: Role | null | undefined): string {
+  if (!role) return "—";
+  return INTERNAL_ROLE_LABELS[role] ?? ROLE_META[role].label;
+}
+
 /** Whether the given role is the super admin (guards super-admin-only sections). */
 export function isSuperAdmin(role: Role | null | undefined): boolean {
   return role === "super_admin";

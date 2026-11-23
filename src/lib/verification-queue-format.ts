@@ -1,6 +1,7 @@
 /** Formatting helpers shared by the Verification queue list and detail modal (FRD §12.5). */
 
 import { formatAmountRange } from "@/lib/explore-format";
+import { internalRoleLabel, normalizeRole } from "@/lib/roles";
 import type { VerificationQueueListItem } from "@/types/api.types";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -50,20 +51,15 @@ export function formatWaiting(submittedAt?: string | null): string {
 }
 
 /**
- * Role label for the Verification queue only — distinct from the platform-wide
- * roleLabel()/ROLE_META (used on Switch Role etc., where "Startup"/"B2B Enterprise"
- * is correct). Here the column names the person's standing within their company:
- * a startup's registrant is its Founder, a B2B company's its Owner.
+ * Role label for the Verification queue's `company_role_master.role_code` values
+ * (STARTUP / B2B / INVESTOR) — normalizes to our Role enum and defers to the shared
+ * internalRoleLabel() overlay (see roles.ts) so Members and Verification queue stay
+ * in sync. Falls back to the raw code if it's ever something unrecognized.
  */
-const QUEUE_ROLE_LABELS: Record<string, string> = {
-  STARTUP: "Founder",
-  B2B: "Owner",
-  INVESTOR: "Investor",
-};
-
 export function queueRoleLabel(roleCode?: string | null): string {
   if (!roleCode) return "—";
-  return QUEUE_ROLE_LABELS[roleCode] ?? roleCode;
+  const role = normalizeRole(roleCode);
+  return role ? internalRoleLabel(role) : roleCode;
 }
 
 export { ONE_DAY_MS };
