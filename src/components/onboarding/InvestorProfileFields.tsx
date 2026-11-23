@@ -218,7 +218,8 @@ export function InvestorProfileFields({ control, register, setValue, errors, hid
           {...register("investor.numberOfInvestments")}
         />
 
-        {/* NOT IN NEW UI: kept from the previous UI. Everything in here is optional. */}
+        {/* HIDDEN FOR NOW: "More investor details" collapsible pane (kept from the previous UI, all optional).
+            To show it again, delete this comment's opening and closing markers (the "HIDDEN FOR NOW" line and the "END HIDDEN" line).
         <details
           open={legacyOpen || legacyHasError}
           onToggle={(ev) => setLegacyOpen((ev.currentTarget as HTMLDetailsElement).open)}
@@ -293,6 +294,7 @@ export function InvestorProfileFields({ control, register, setValue, errors, hid
             />
           </div>
         </details>
+        END HIDDEN */}
       </div>
     );
   }
