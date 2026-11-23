@@ -11,8 +11,8 @@ import { VerificationStatusPill } from "@/components/dashboard/verification-queu
 import { VerificationQueueDetailModal } from "@/components/dashboard/verification-queue/VerificationQueueDetailModal";
 import { TablePager } from "@/components/dashboard/TablePager";
 import { fetchVerificationQueue } from "@/services/admin.service";
-import { initials, roleLabel } from "@/lib/admin-format";
-import { formatApplicantSize, formatWaiting, isOverdue } from "@/lib/verification-queue-format";
+import { initials } from "@/lib/admin-format";
+import { formatWaiting, isOverdue, queueRoleLabel } from "@/lib/verification-queue-format";
 import { isStaffRole } from "@/lib/roles";
 import type { VerificationQueueListItem } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -130,13 +130,11 @@ export default function VerificationQueuePage() {
                           </Avatar>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-bold text-on-surface">{item.applicantName}</p>
-                            <p className="truncate text-xs text-on-surface-variant">
-                              {item.companyName} · {formatApplicantSize(item)}
-                            </p>
+                            <p className="truncate text-xs text-on-surface-variant">{item.companyName ?? "—"}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-sm text-on-surface-variant">{roleLabel(item.role ?? undefined)}</td>
+                      <td className="px-5 py-4 text-sm text-on-surface-variant">{queueRoleLabel(item.role)}</td>
                       <td className="px-5 py-4"><VerificationStatusPill status={item.gstStatus} /></td>
                       <td className="px-5 py-4"><VerificationStatusPill status={item.mcaStatus} /></td>
                       <td className="px-5 py-4"><VerificationStatusPill status={item.panStatus} /></td>

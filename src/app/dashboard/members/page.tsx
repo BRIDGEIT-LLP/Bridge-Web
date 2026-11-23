@@ -17,7 +17,7 @@ import { TablePager } from "@/components/dashboard/TablePager";
 import { MemberStatusPill } from "@/components/dashboard/members/MemberStatusPill";
 import { fetchUsers, setUserSuspension } from "@/services/admin.service";
 import { formatDate, initials } from "@/lib/admin-format";
-import { isStaffRole, ROLE_META, USER_ROLES } from "@/lib/roles";
+import { internalRoleLabel, isStaffRole, USER_ROLES } from "@/lib/roles";
 import type { AdminUserListItem } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
@@ -35,12 +35,14 @@ const COLUMNS: { label: string; className?: string }[] = [
 ];
 
 /**
- * Startup / Investor / B2B Enterprise — derived from `USER_ROLES` + `ROLE_META` rather than
- * spelled out, so a role added or relabelled in `lib/roles.ts` shows up here automatically.
+ * Founder / Investor / Owner — derived from `USER_ROLES` + `internalRoleLabel` rather
+ * than spelled out, so a role added or relabelled in `lib/roles.ts` shows up here
+ * automatically. Filter values stay the underlying Role (startup/investor/b2b_enterprise);
+ * only the displayed label is the back-office wording, matching the table rows below.
  */
 const ROLE_OPTIONS = [
   { value: "", label: "All roles" },
-  ...USER_ROLES.map((r) => ({ value: r, label: ROLE_META[r].label })),
+  ...USER_ROLES.map((r) => ({ value: r, label: internalRoleLabel(r) })),
 ];
 
 /**
@@ -247,7 +249,7 @@ export default function MembersPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4 text-sm text-on-surface-variant">
-                      {u.role ? ROLE_META[u.role].label : "—"}
+                      {internalRoleLabel(u.role)}
                     </td>
                     <td className="px-5 py-4 text-sm text-on-surface-variant">{u.city ?? "—"}</td>
                     <td className="px-5 py-4">
@@ -334,7 +336,7 @@ export default function MembersPage() {
               </div>
               {confirming.role && (
                 <span className="ml-auto shrink-0 rounded bg-surface-container-high px-2 py-1 text-[10px] font-bold uppercase tracking-tight text-on-surface-variant">
-                  {ROLE_META[confirming.role].label}
+                  {internalRoleLabel(confirming.role)}
                 </span>
               )}
             </div>
