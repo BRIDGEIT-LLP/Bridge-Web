@@ -17,12 +17,18 @@ export function formatApplicantSize(item: Pick<VerificationQueueListItem, "role"
   return parts.length ? parts.join(", ") : "—";
 }
 
-/** Hours since submission — drives the "over 24 hours turns red" SLA flag (S48). */
-export function hoursWaiting(submittedAt?: string | null): number | null {
+/** Minutes since submission — finer-grained base for formatWaiting/isOverdue. */
+export function minutesWaiting(submittedAt?: string | null): number | null {
   if (!submittedAt) return null;
   const submitted = new Date(submittedAt).getTime();
   if (Number.isNaN(submitted)) return null;
-  return Math.floor((Date.now() - submitted) / (60 * 60 * 1000));
+  return Math.floor((Date.now() - submitted) / (60 * 1000));
+}
+
+/** Hours since submission — drives the "over 24 hours turns red" SLA flag (S48). */
+export function hoursWaiting(submittedAt?: string | null): number | null {
+  const minutes = minutesWaiting(submittedAt);
+  return minutes == null ? null : Math.floor(minutes / 60);
 }
 
 export function isOverdue(submittedAt?: string | null): boolean {
@@ -30,14 +36,34 @@ export function isOverdue(submittedAt?: string | null): boolean {
   return hours != null && hours >= 24;
 }
 
-/** "yesterday" / "3h" / "7h" style label, matching the S48 mockup. */
+/** "just now" / "5m" / "3h" / "7h" / "yesterday" style label, matching the S48 mockup
+ *  plus a minutes tier so sub-hour waits aren't all lumped into "just now". */
 export function formatWaiting(submittedAt?: string | null): string {
-  const hours = hoursWaiting(submittedAt);
-  if (hours == null) return "—";
-  if (hours < 1) return "just now";
+  const minutes = minutesWaiting(submittedAt);
+  if (minutes == null) return "—";
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
   return days === 1 ? "yesterday" : `${days}d`;
+}
+
+/**
+ * Role label for the Verification queue only — distinct from the platform-wide
+ * roleLabel()/ROLE_META (used on Switch Role etc., where "Startup"/"B2B Enterprise"
+ * is correct). Here the column names the person's standing within their company:
+ * a startup's registrant is its Founder, a B2B company's its Owner.
+ */
+const QUEUE_ROLE_LABELS: Record<string, string> = {
+  STARTUP: "Founder",
+  B2B: "Owner",
+  INVESTOR: "Investor",
+};
+
+export function queueRoleLabel(roleCode?: string | null): string {
+  if (!roleCode) return "—";
+  return QUEUE_ROLE_LABELS[roleCode] ?? roleCode;
 }
 
 export { ONE_DAY_MS };

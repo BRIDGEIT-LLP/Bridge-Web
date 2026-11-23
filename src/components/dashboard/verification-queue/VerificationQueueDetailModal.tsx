@@ -11,8 +11,8 @@ import { AsyncState } from "@/components/ui/AsyncState";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { fetchVerificationQueueDetail, reviewKyc } from "@/services/admin.service";
 import { VerificationStatusPill } from "./VerificationStatusPill";
-import { formatApplicantSize } from "@/lib/verification-queue-format";
-import { formatDateTime, roleLabel } from "@/lib/admin-format";
+import { formatApplicantSize, queueRoleLabel } from "@/lib/verification-queue-format";
+import { formatDateTime } from "@/lib/admin-format";
 import { VERIFICATION_REJECTION_REASONS } from "@/config/constant";
 import type { VerificationQueueDetail } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -184,7 +184,7 @@ export function VerificationQueueDetailModal({
 
               <div>
                 <p className="text-sm text-on-surface-variant">
-                  {detail.companyName ?? NA} · {roleLabel(detail.role ?? undefined)}
+                  {detail.companyName ?? NA} · {queueRoleLabel(detail.role)}
                   {detail.city ? ` · ${detail.city}` : ""}
                 </p>
               </div>

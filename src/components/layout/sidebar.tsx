@@ -9,6 +9,21 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { SwitchUserModal } from "@/components/dashboard/SwitchUserModal";
 import { getNavForRole, SUPPORT_NAV } from "@/lib/dashboard-nav";
 import { isStaffRole, isUserRole } from "@/lib/roles";
+import { fetchVerificationQueue } from "@/services/admin.service";
+
+/** Small count pill for a sidebar nav row — same look as the mobile BottomTabBar's
+ *  badge, but inline (after the label) instead of overlaid on the icon, since rows
+ *  here are full-width with room for it. Hidden when the rail is collapsed. */
+function NavBadge({ count }: { count: number }) {
+  return (
+    <span
+      aria-label={`${count} pending`}
+      className="ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold leading-5 text-on-primary"
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 /** Width of the collapsed rail (`w-20`), in px — used to place the fixed tooltip. */
 const COLLAPSED_WIDTH = 80;
@@ -48,11 +63,29 @@ export function DashboardSidebar({ open = false, onClose }: DashboardSidebarProp
   const [switchOpen, setSwitchOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hoverLabel, setHoverLabel] = useState<{ text: string; top: number } | null>(null);
+  const [verificationQueueCount, setVerificationQueueCount] = useState(0);
 
   // Navigating closes the drawer — otherwise it stays over the page you just opened.
   useEffect(() => {
     onClose?.();
   }, [pathname, onClose]);
+
+  // Re-fetches the pending count on every navigation (staff only) — cheapest way to
+  // keep it current after a review is actioned, without a dedicated count endpoint.
+  useEffect(() => {
+    if (!isStaffRole(role)) return;
+    let cancelled = false;
+    fetchVerificationQueue()
+      .then((items) => {
+        if (!cancelled) setVerificationQueueCount(items.length);
+      })
+      .catch(() => {
+        // Badge is a non-critical hint — stay silent and keep the last known count.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, pathname]);
 
   // Escape closes it, matching Modal/Drawer behaviour elsewhere.
   useEffect(() => {
@@ -137,6 +170,9 @@ export function DashboardSidebar({ open = false, onClose }: DashboardSidebarProp
                 >
                   <Icon name={item.icon} size={20} filled={active} className="shrink-0" />
                   <RowLabel collapsed={railCollapsed}>{item.label}</RowLabel>
+                  {item.key === "verification-queue" && !railCollapsed && verificationQueueCount > 0 && (
+                    <NavBadge count={verificationQueueCount} />
+                  )}
                 </Link>
               </li>
             );
