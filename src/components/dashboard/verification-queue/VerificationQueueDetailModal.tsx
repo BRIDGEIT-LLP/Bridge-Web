@@ -11,7 +11,7 @@ import { AsyncState } from "@/components/ui/AsyncState";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { fetchVerificationQueueDetail, reviewKyc } from "@/services/admin.service";
 import { VerificationStatusPill } from "./VerificationStatusPill";
-import { formatApplicantSize, queueRoleLabel } from "@/lib/verification-queue-format";
+import { detailRoleLabel, formatApplicantSize } from "@/lib/verification-queue-format";
 import { emitVerificationQueueChanged } from "@/lib/verification-queue-events";
 import { formatDateTime } from "@/lib/admin-format";
 import { VERIFICATION_REJECTION_REASONS } from "@/config/constant";
@@ -131,15 +131,33 @@ export function VerificationQueueDetailModal({
   };
 
   const mismatch = detail && (detail.nameMatchStatus === "FAILED" || detail.nameMatchStatus === "CHECK") && detail.nameMatchNote;
+  const city = detail?.city?.trim();
 
   return (
     <>
       <Modal
         open={companyId != null}
         onClose={onClose}
-        // `applicantName` can be empty for an applicant who hasn't filled their name yet
-        // (early/incomplete registration) — `||` catches that, `??` would not.
-        title={detail?.applicantName || detail?.companyName || "Applicant"}
+        // A tight name + subtitle block (no header divider) matching the S49 mockup,
+        // instead of Modal's default single-line title with a border under it.
+        headerContent={
+          <div className="min-w-0 flex-1">
+            {/* `applicantName` can be empty for an applicant who hasn't filled their name
+                yet (early/incomplete registration) — `||` catches that, `??` would not.
+                Still an <h2> (not a <p>) so the dialog keeps an accessible heading now
+                that headerContent replaces Modal's own <h2>. */}
+            <h2 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">
+              {detail?.applicantName || detail?.companyName || "Applicant"}
+            </h2>
+            {detail && (
+              <p className="truncate text-sm text-on-surface-variant">
+                {detail.companyName || NA} · {detailRoleLabel(detail.role)}
+                {city ? ` · ${city}` : ""}
+              </p>
+            )}
+          </div>
+        }
+        headerBorder={false}
         maxWidthClass="max-w-xl"
         closeDisabled={submitting != null}
         footer={
@@ -152,9 +170,11 @@ export function VerificationQueueDetailModal({
               >
                 Book screening call
               </Button>
+              {/* "Danger" style per the design system (page 4) — same size as every other
+                  button here, just outline-red instead of filled. */}
               <Button
                 variant="secondary"
-                className="border border-error/30 !bg-transparent text-error hover:!bg-error/10"
+                className="border border-error/30 !bg-transparent !text-error hover:!bg-error/10"
                 disabled={submitting != null || !reasonCode}
                 onClick={() => submit("REJECT")}
               >
@@ -183,13 +203,6 @@ export function VerificationQueueDetailModal({
                   <span>{detail.nameMatchNote}</span>
                 </div>
               )}
-
-              <div>
-                <p className="text-sm text-on-surface-variant">
-                  {detail.companyName ?? NA} · {queueRoleLabel(detail.role)}
-                  {detail.city ? ` · ${detail.city}` : ""}
-                </p>
-              </div>
 
               <div className="flex flex-col gap-2.5 text-sm">
                 <DetailRow label="Submitted">
@@ -223,10 +236,7 @@ export function VerificationQueueDetailModal({
                 </DetailRow>
 
                 <DetailRow label="Re-submissions">
-                  <span className="font-medium text-on-surface">
-                    {detail.kycRejectionCount}
-                    {detail.maxRejections != null ? ` / ${detail.maxRejections}` : ""}
-                  </span>
+                  <span className="font-medium text-on-surface">{detail.kycRejectionCount}</span>
                 </DetailRow>
               </div>
 

@@ -46,13 +46,16 @@ export function formatLocation(country?: string | null, continent?: string | nul
   return [country, continent ? prettyTag(continent) : null].filter(Boolean).join(" · ");
 }
 
+/** Compact INR amount, e.g. 15000000 → "₹1.5Cr". */
+export function formatInrCompact(n: number): string {
+  return `₹${new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 }).format(n)}`;
+}
+
 /** Compact INR amount range, e.g. (10000000, 15000000) → "₹1Cr – ₹1.5Cr". */
 export function formatAmountRange(min?: number, max?: number): string {
-  const fmt = (n: number) =>
-    `₹${new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 }).format(n)}`;
-  if (min != null && max != null) return `${fmt(min)} – ${fmt(max)}`;
-  if (min != null) return `${fmt(min)}+`;
-  if (max != null) return `Up to ${fmt(max)}`;
+  if (min != null && max != null) return `${formatInrCompact(min)} – ${formatInrCompact(max)}`;
+  if (min != null) return `${formatInrCompact(min)}+`;
+  if (max != null) return `Up to ${formatInrCompact(max)}`;
   return "";
 }
 
