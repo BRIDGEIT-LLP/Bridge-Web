@@ -11,8 +11,9 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const revenueBandLabel = (value: string) => REVENUE_BANDS.find((o) => o.value === value)?.label ?? value;
 const fundingStageLabel = (value: string) => FUNDING_STAGES.find((o) => o.value === value)?.label ?? value;
 
-/** "Seed, ₹8Cr raised" for a founder, "₹10 Cr – ₹50 Cr" revenue band for a business
- *  owner, "₹2Cr – ₹10Cr" ticket size for an investor. */
+/** "Seed, Raising ₹8Cr" for a founder, a revenue band label (e.g. "₹10 Cr – ₹50 Cr",
+ *  from REVENUE_BANDS — spaced differently than formatInrCompact's "₹8Cr") for a
+ *  business owner, "₹2Cr – ₹10Cr" ticket size for an investor. */
 export function formatApplicantSize(item: Pick<VerificationQueueListItem, "role" | "funding">): string {
   const { role, funding } = item;
   if (role === "INVESTOR") {
