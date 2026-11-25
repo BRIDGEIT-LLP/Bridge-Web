@@ -144,7 +144,7 @@ export default function VerificationQueuePage() {
                       </td>
                       <td className="py-4 pl-5 pr-8 text-right">
                         {/* Outline style per the design system (S48) — a light border and
-                            white fill, not the filled primary button used elsewhere. */}
+                            transparent fill, not the filled primary button used elsewhere. */}
                         <button
                           type="button"
                           onClick={() => setSelectedCompanyId(item.companyId)}
