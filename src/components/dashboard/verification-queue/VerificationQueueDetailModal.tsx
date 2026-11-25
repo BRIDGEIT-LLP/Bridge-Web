@@ -142,14 +142,16 @@ export function VerificationQueueDetailModal({
         headerContent={
           <div className="min-w-0 flex-1">
             {/* `applicantName` can be empty for an applicant who hasn't filled their name
-                yet (early/incomplete registration) — `||` catches that, `??` would not. */}
-            <p className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">
+                yet (early/incomplete registration) — `||` catches that, `??` would not.
+                Still an <h2> (not a <p>) so the dialog keeps an accessible heading now
+                that headerContent replaces Modal's own <h2>. */}
+            <h2 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">
               {detail?.applicantName || detail?.companyName || "Applicant"}
-            </p>
+            </h2>
             {detail && (
               <p className="truncate text-sm text-on-surface-variant">
                 {detail.companyName || NA} · {detailRoleLabel(detail.role)}
-                {detail.city?.trim() ? ` · ${detail.city}` : ""}
+                {detail.city?.trim() ? ` · ${detail.city.trim()}` : ""}
               </p>
             )}
           </div>
