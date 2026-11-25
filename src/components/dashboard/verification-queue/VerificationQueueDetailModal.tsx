@@ -131,6 +131,7 @@ export function VerificationQueueDetailModal({
   };
 
   const mismatch = detail && (detail.nameMatchStatus === "FAILED" || detail.nameMatchStatus === "CHECK") && detail.nameMatchNote;
+  const city = detail?.city?.trim();
 
   return (
     <>
@@ -151,7 +152,7 @@ export function VerificationQueueDetailModal({
             {detail && (
               <p className="truncate text-sm text-on-surface-variant">
                 {detail.companyName || NA} · {detailRoleLabel(detail.role)}
-                {detail.city?.trim() ? ` · ${detail.city.trim()}` : ""}
+                {city ? ` · ${city}` : ""}
               </p>
             )}
           </div>
