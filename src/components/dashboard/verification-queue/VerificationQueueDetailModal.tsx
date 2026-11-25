@@ -148,8 +148,8 @@ export function VerificationQueueDetailModal({
             </p>
             {detail && (
               <p className="truncate text-sm text-on-surface-variant">
-                {detail.companyName ?? NA} · {detailRoleLabel(detail.role)}
-                {detail.city ? ` · ${detail.city}` : ""}
+                {detail.companyName || NA} · {detailRoleLabel(detail.role)}
+                {detail.city?.trim() ? ` · ${detail.city}` : ""}
               </p>
             )}
           </div>

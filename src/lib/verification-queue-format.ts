@@ -1,6 +1,6 @@
 /** Formatting helpers shared by the Verification queue list and detail modal (FRD §12.5). */
 
-import { formatAmountRange } from "@/lib/explore-format";
+import { formatAmountRange, formatInrCompact } from "@/lib/explore-format";
 import { REVENUE_BANDS } from "@/lib/b2b-profile-options";
 import { FUNDING_STAGES } from "@/lib/startup-profile-options";
 import { internalRoleLabel, normalizeRole } from "@/lib/roles";
@@ -24,9 +24,18 @@ export function formatApplicantSize(item: Pick<VerificationQueueListItem, "role"
   }
   // Registration only ever collects a single ask figure (funding_ask_amt_max) today,
   // so formatAmountRange's "Up to ₹X" reads oddly here — "Raising ₹X" (S49 mockup)
-  // is the phrasing for a fundraise ask, range or not.
-  const askRange = formatAmountRange(funding.askAmountMin ?? undefined, funding.askAmountMax ?? undefined);
-  const ask = askRange ? `Raising ${askRange.replace(/^Up to /, "")}` : null;
+  // is the phrasing for a fundraise ask, range or not. Built directly from the
+  // amounts (not derived from formatAmountRange's wording) so it can't silently
+  // break if that wording changes.
+  const { askAmountMin, askAmountMax } = funding;
+  let ask: string | null = null;
+  if (askAmountMin != null && askAmountMax != null) {
+    ask = `Raising ${formatInrCompact(askAmountMin)} – ${formatInrCompact(askAmountMax)}`;
+  } else if (askAmountMax != null) {
+    ask = `Raising ${formatInrCompact(askAmountMax)}`;
+  } else if (askAmountMin != null) {
+    ask = `Raising ${formatInrCompact(askAmountMin)}+`;
+  }
   const parts = [funding.stage ? fundingStageLabel(funding.stage) : null, ask].filter(Boolean);
   return parts.length ? parts.join(", ") : "—";
 }
