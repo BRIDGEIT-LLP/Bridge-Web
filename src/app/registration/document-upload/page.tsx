@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { DocumentUploadCard, type ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
-import type { DocType } from "@/config/docTypes";
+import { DOC_MAX_MB, type DocType } from "@/config/docTypes";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { ONBOARDING_STEPS, stepNumber } from "@/lib/onboarding-steps";
 import { PAN_REGEX, AADHAAR_REGEX } from "@/lib/validation";
@@ -47,11 +47,16 @@ function ErrorText({ msg }: { msg?: string }) {
 
 const MIME_NAMES: Record<string, string> = { "image/png": "PNG", "image/jpeg": "JPG", "application/pdf": "PDF" };
 
-/** "PNG or JPG, up to 5 MB" / "PDF only, up to 20 MB" from what the API says the document accepts. */
+/** Size limit enforced in the browser: the frontend's own DOC_MAX_MB, falling back to what the API sends. */
+function maxMbFor(doc: KycRequirement) {
+  return DOC_MAX_MB[doc.document_type] ?? doc.max_size_mb;
+}
+
+/** "PNG, JPG or PDF, up to 10 MB" / "PDF only, up to 20 MB": formats from the API, size from maxMbFor. */
 function hintFor(doc: KycRequirement) {
   const names = doc.accepted_mime_types.map((m) => MIME_NAMES[m] ?? m);
   const formats = names.length === 1 ? `${names[0]} only` : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
-  return `${formats}, up to ${doc.max_size_mb} MB`;
+  return `${formats}, up to ${maxMbFor(doc)} MB`;
 }
 
 /** Which scan endpoint a document goes through: images, PDFs, or whichever the chosen file is. */
@@ -308,7 +313,7 @@ export default function DocumentUploadPage() {
                 docType={type as DocType}
                 slots={[{ key: t.side, label: t.label, side: t.side }]}
                 accept={t.doc.accepted_mime_types.join(",")}
-                maxSizeMB={t.doc.max_size_mb}
+                maxSizeMB={maxMbFor(t.doc)}
                 hint={hintFor(t.doc)}
                 onChange={(d) => {
                   const next = { ...(getValues(`docs.${type}`) ?? {}) };
