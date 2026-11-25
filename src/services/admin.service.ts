@@ -393,6 +393,7 @@ function toVerificationQueueItem(raw: Record<string, unknown>): VerificationQueu
       ticketSizeMin: toNum(funding.ticketSizeMin),
       ticketSizeMax: toNum(funding.ticketSizeMax),
       ticketCurrency: (funding.ticketCurrency as string | null) ?? null,
+      revenueBand: (funding.revenueBand as string | null) ?? null,
     },
   };
 }

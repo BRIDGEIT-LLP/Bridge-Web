@@ -1,20 +1,43 @@
 /** Formatting helpers shared by the Verification queue list and detail modal (FRD §12.5). */
 
-import { formatAmountRange } from "@/lib/explore-format";
+import { formatAmountRange, formatInrCompact } from "@/lib/explore-format";
+import { REVENUE_BANDS } from "@/lib/b2b-profile-options";
+import { FUNDING_STAGES } from "@/lib/startup-profile-options";
 import { internalRoleLabel, normalizeRole } from "@/lib/roles";
 import type { VerificationQueueListItem } from "@/types/api.types";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-/** "Seed, ₹8Cr raised" for a founder/owner, "₹2Cr – ₹10Cr" ticket size for an investor. */
+const revenueBandLabel = (value: string) => REVENUE_BANDS.find((o) => o.value === value)?.label ?? value;
+const fundingStageLabel = (value: string) => FUNDING_STAGES.find((o) => o.value === value)?.label ?? value;
+
+/** "Seed, Raising ₹8Cr" for a founder, a revenue band label (e.g. "₹10 Cr – ₹50 Cr",
+ *  from REVENUE_BANDS — spaced differently than formatInrCompact's "₹8Cr") for a
+ *  business owner, "₹2Cr – ₹10Cr" ticket size for an investor. */
 export function formatApplicantSize(item: Pick<VerificationQueueListItem, "role" | "funding">): string {
   const { role, funding } = item;
   if (role === "INVESTOR") {
     const ticket = formatAmountRange(funding.ticketSizeMin ?? undefined, funding.ticketSizeMax ?? undefined);
     return ticket || "—";
   }
-  const ask = formatAmountRange(funding.askAmountMin ?? undefined, funding.askAmountMax ?? undefined);
-  const parts = [funding.stage, ask ? `${ask} raised` : null].filter(Boolean);
+  if (role === "B2B") {
+    return funding.revenueBand ? revenueBandLabel(funding.revenueBand) : "—";
+  }
+  // Registration only ever collects a single ask figure (funding_ask_amt_max) today,
+  // so formatAmountRange's "Up to ₹X" reads oddly here — "Raising ₹X" (S49 mockup)
+  // is the phrasing for a fundraise ask, range or not. Built directly from the
+  // amounts (not derived from formatAmountRange's wording) so it can't silently
+  // break if that wording changes.
+  const { askAmountMin, askAmountMax } = funding;
+  let ask: string | null = null;
+  if (askAmountMin != null && askAmountMax != null) {
+    ask = `Raising ${formatInrCompact(askAmountMin)} – ${formatInrCompact(askAmountMax)}`;
+  } else if (askAmountMax != null) {
+    ask = `Raising ${formatInrCompact(askAmountMax)}`;
+  } else if (askAmountMin != null) {
+    ask = `Raising ${formatInrCompact(askAmountMin)}+`;
+  }
+  const parts = [funding.stage ? fundingStageLabel(funding.stage) : null, ask].filter(Boolean);
   return parts.length ? parts.join(", ") : "—";
 }
 
@@ -60,6 +83,16 @@ export function queueRoleLabel(roleCode?: string | null): string {
   if (!roleCode) return "—";
   const role = normalizeRole(roleCode);
   return role ? internalRoleLabel(role) : roleCode;
+}
+
+/**
+ * Role label for the applicant detail/review modal only — same as queueRoleLabel
+ * except B2B spells out "Business owner" instead of the list's shorter "Owner".
+ */
+export function detailRoleLabel(roleCode?: string | null): string {
+  if (!roleCode) return "—";
+  if (normalizeRole(roleCode) === "b2b_enterprise") return "Business owner";
+  return queueRoleLabel(roleCode);
 }
 
 export { ONE_DAY_MS };
