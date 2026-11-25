@@ -899,6 +899,8 @@ export interface VerificationApplicantFunding {
   ticketSizeMin?: number | null;
   ticketSizeMax?: number | null;
   ticketCurrency?: string | null;
+  /** `user.revenue_band` — a B2B applicant's "size" (startups use stage/ask, investors use ticket size). */
+  revenueBand?: string | null;
 }
 
 /** One row of the Verification queue list (replaces KycSubmissionListItem for this screen). */

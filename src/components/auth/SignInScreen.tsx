@@ -5,10 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Icon } from "@/components/ui/Icon";
-import { Card } from "@/components/ui/Card";
 import { Loader } from "@/components/common/loader";
-import { Input } from "@/components/ui/input";
 import { loginUser, loginWithOtp, selectMfaChannel, type Portal } from "@/services/auth.service";
 import { setSession } from "@/lib/auth-session";
 import { normalizeRole, type Role } from "@/lib/roles";
@@ -16,62 +13,6 @@ import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { EMAIL_REGEX, PHONE_REGEX } from "@/lib/validation";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
-
-/** "Built for every stage" — who BRIDGE serves. */
-const STAGES = [
-  {
-    icon: "rocket_launch",
-    title: "Startups & Founders",
-    body: "Pitch your vision to pre-vetted investors. Share traction, funding ask, and team details — get matched with angels, VCs, and PE firms aligned to your stage.",
-  },
-  {
-    icon: "trending_up",
-    title: "Investors & Funds",
-    body: "Discover high-potential startups filtered by sector, stage, and ticket size. Review founder profiles, traction metrics, and connect through private deal rooms.",
-  },
-  {
-    icon: "handshake",
-    title: "B2B Partnerships",
-    body: "Find manufacturers, distributors, exporters, and buyers across 20+ industries. Match by intent, geography, and revenue band to build your supply chain.",
-  },
-];
-
-/** "How it works" — the four-step flow. */
-const STEPS = [
-  {
-    title: "Choose Your Path",
-    body: "Sign up and select your mode — B2B partnerships, Founder seeking investors, or Investor discovering startups.",
-  },
-  {
-    title: "Get Matched Intelligently",
-    body: "Our algorithm pairs founders with investors by sector and stage, and matches B2B partners by intent and geography.",
-  },
-  {
-    title: "Connect with Confidence",
-    body: "Every profile is verified. Send connection requests, accept pitches, and start conversations — no spam, no noise.",
-  },
-  {
-    title: "Close in Deal Rooms",
-    body: "Private deal rooms for negotiations, document sharing, AI-powered suggestions, and scheduling calls.",
-  },
-];
-
-/** "Why BRIDGE" — quick proof points. */
-const WHY = [
-  "Verification-first — every profile is vetted before you see it",
-  "Three modes tailored to B2B, Founders, and Investors",
-  "AI compatibility scoring and smart recommendations",
-  "Pan-India network spanning 20+ industries and 35+ countries",
-];
-
-/** Small uppercase section heading used down the editorial column. */
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="font-label text-xs font-bold uppercase tracking-wider text-primary">
-      {children}
-    </span>
-  );
-}
 
 interface LoginForm {
   email: string;
@@ -237,16 +178,18 @@ export function SignInScreen({
     }
   };
 
-  // Member sign-in follows the design prototype: a single narrow centred card (no editorial
-  // column). Admin / superadmin portals keep the original two-column layout below.
-  if (portal === "user") {
-    const fieldCls = (hasError: boolean) =>
-      `min-h-[42px] w-full rounded-lg border bg-white px-3 py-2.5 text-sm leading-[1.4] text-[#1A1F2B] transition-[border-color,box-shadow] placeholder:text-[#8A93A0] hover:border-[#B4BDC9] focus:border-[#0C56D0] focus:outline-none focus:ring-[3px] focus:ring-[#EAF1FC] ${
-        hasError ? "border-[#9F403D]" : "border-[#CFD6DF]"
-      }`;
-    const labelCls = "text-[12.5px] font-semibold text-[#1A1F2B]";
-    const msgCls = "text-xs text-[#9F403D]";
+  // Shared input/label/error styling (FRD design system) — every portal's sign-in form
+  // (member, admin, super admin) is one narrow centred card using these same tokens.
+  const fieldCls = (hasError: boolean) =>
+    `min-h-[42px] w-full rounded-lg border bg-white px-3 py-2.5 text-sm leading-[1.4] text-[#1A1F2B] transition-[border-color,box-shadow] placeholder:text-[#8A93A0] hover:border-[#B4BDC9] focus:border-[#0C56D0] focus:outline-none focus:ring-[3px] focus:ring-[#EAF1FC] ${
+      hasError ? "border-[#9F403D]" : "border-[#CFD6DF]"
+    }`;
+  const labelCls = "text-[12.5px] font-semibold text-[#1A1F2B]";
+  const msgCls = "text-xs text-[#9F403D]";
 
+  // Member sign-in follows the design prototype: a single narrow centred card (no editorial
+  // column). Admin / superadmin portals use the same card styling below, with staff-only copy.
+  if (portal === "user") {
     return (
       <div className="min-h-full bg-[#F6F8FA] px-4 py-8 sm:px-6 sm:py-10">
         <div className="mx-auto flex w-full max-w-[470px] flex-col gap-[18px] rounded-[14px] border border-[#E3E8EE] bg-white p-[22px_18px] shadow-[0_10px_30px_rgba(26,31,43,.08)] sm:rounded-2xl sm:p-8">
@@ -369,155 +312,87 @@ export function SignInScreen({
     );
   }
 
+  // Admin / super admin: same single centred card as the member sign-in (FRD design
+  // system), with staff-appropriate copy — no OTP tab (staff stay password-based) and
+  // no "Apply for membership" link.
   return (
-    <main className="no-scrollbar mx-auto grid max-w-[1200px] grid-cols-1 gap-10 px-4 py-6 sm:px-6 lg:h-[calc(100vh-80px)] lg:grid-cols-12 lg:gap-12 lg:overflow-y-auto lg:py-0">
-      {/* Left: editorial context — scrolls with the page; the card stays pinned. */}
-      <div className="flex flex-col gap-8 lg:col-span-7 lg:py-10">
-        <div className="space-y-4">
-          {/* <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
+    <div className="flex min-h-full items-center justify-center bg-[#F6F8FA] px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mx-auto flex w-full max-w-[470px] flex-col gap-[18px] rounded-[14px] border border-[#E3E8EE] bg-white p-[22px_18px] shadow-[0_10px_30px_rgba(26,31,43,.08)] sm:rounded-2xl sm:p-8">
+        <div className="flex flex-col gap-2">
+          <span className="inline-flex w-fit items-center rounded-full bg-[#EAF1FC] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0C56D0]">
             {badge}
-          </span> */}
-          <h1 className="font-headline text-3xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-4xl lg:text-[2.75rem]">
-            Where businesses, startups &amp; <span className="text-primary">investors connect</span>
-          </h1>
-          <p className="max-w-xl text-base leading-relaxed text-on-surface-variant sm:text-lg">
-            Whether you&apos;re scaling a startup, sourcing investment, or growing your supply
-            chain - BRIDGE matches you with verified partners who fit.
-          </p>
-        </div>
-
-        {/* Built for every stage */}
-        <div className="flex flex-col gap-5">
-          <SectionLabel>Built for every stage</SectionLabel>
-          <div className="flex flex-col gap-5">
-            {STAGES.map((s) => (
-              <div key={s.title} className="flex items-start gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-container-highest text-primary">
-                  <Icon name={s.icon} size={22} />
-                </div>
-                <div>
-                  <p className="font-bold text-on-surface">{s.title}</p>
-                  <p className="text-sm leading-relaxed text-on-surface-variant">{s.body}</p>
-                </div>
-              </div>
-            ))}
+          </span>
+          <div>
+            <h2 className="font-headline text-[22px] font-bold tracking-[-0.01em] text-[#1A1F2B]">{heading}</h2>
+            <p className="mt-1 text-[13px] text-[#5B6472]">{subheading}</p>
           </div>
         </div>
 
-        {/* How it works */}
-        <div className="flex flex-col gap-5 rounded-2xl bg-surface-container p-6 sm:p-8">
-          <SectionLabel>How it works</SectionLabel>
-          <div className="flex flex-col gap-5">
-            {STEPS.map((s, i) => (
-              <div key={s.title} className="flex items-start gap-4">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary font-headline text-sm font-bold text-on-primary">
-                  {i + 1}
-                </div>
-                <div>
-                  <p className="font-bold text-on-surface">{s.title}</p>
-                  <p className="text-sm leading-relaxed text-on-surface-variant">{s.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Why BRIDGE */}
-        <div className="flex flex-col gap-4">
-          <SectionLabel>Why BRIDGE</SectionLabel>
-          <ul className="flex flex-col gap-3">
-            {WHY.map((w) => (
-              <li key={w} className="flex items-start gap-3">
-                <Icon name="check_circle" size={20} className="shrink-0 text-primary" />
-                <span className="text-sm leading-relaxed text-on-surface-variant">{w}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Right: form card — pinned (sticky) so only the text scrolls past it. */}
-      <div className="lg:sticky lg:top-0 lg:col-span-5 lg:flex lg:h-[calc(100vh-80px)] lg:items-center lg:justify-center lg:self-start">
-        <Card padding="lg" className="mx-auto flex w-full max-w-md flex-col gap-4 !p-5 sm:!p-6 lg:!p-6">
-          <div className="flex flex-col gap-1">
-            <h2 className="font-headline text-2xl font-bold text-on-surface">{heading}</h2>
-            <p className="text-sm text-on-surface-variant">{subheading}</p>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-            <Input
-              variant="ux"
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-[18px]">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor="email" className={labelCls}>Email</label>
+            <input
               id="email"
               type="email"
-              label="Official Email Address"
-              required
-              placeholder="john@example.com"
-              error={errors.email?.message}
-              adornment={<Icon name="mail" size={20} />}
+              autoComplete="username"
+              placeholder="name@company.com"
+              className={fieldCls(Boolean(errors.email))}
               {...field("email", {
-                required: "Email is required.",
-                pattern: { value: EMAIL_REGEX, message: "Enter a valid email address." },
+                required: "Enter your email",
+                pattern: { value: EMAIL_REGEX, message: "Enter an email like name@company.com" },
               })}
             />
+            {errors.email && <p className={msgCls}>{errors.email.message}</p>}
+          </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between px-1">
-                <label
-                  htmlFor="password"
-                  className="font-label text-xs font-bold tracking-wide text-on-surface-variant"
-                >
-                  Password
-                  <span className="align-middle text-base leading-none text-error"> *</span>
-                </label>
-                <Link
-                  href={`/reset-password?from=${encodeURIComponent(basePath)}`}
-                  className="text-xs font-bold text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <Input
-                variant="ux"
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <label htmlFor="password" className={labelCls}>Password</label>
+              <Link
+                href={`/reset-password?from=${encodeURIComponent(basePath)}`}
+                className="text-[12.5px] font-semibold text-[#0C56D0] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <div className="relative">
+              <input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••••••"
-                error={errors.password?.message}
-                adornment={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="flex h-full items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
-                  >
-                    <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
-                  </button>
-                }
-                {...field("password", { required: "Password is required." })}
+                autoComplete="current-password"
+                placeholder="Your password"
+                className={`${fieldCls(Boolean(errors.password))} !pr-14`}
+                {...field("password", { required: "Enter your password" })}
               />
-            </div>
-
-            <div className="flex flex-col gap-2">
               <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-pressed disabled:cursor-not-allowed disabled:bg-primary-disabled"
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs font-semibold text-[#5B6472]"
               >
-                {isSubmitting ? <Loader size={18} /> : "Sign In"}
+                {showPassword ? "Hide" : "Show"}
               </button>
-              {showRegister && (
-                <p className="text-center text-sm text-on-surface-variant">
-                  Don't have an account yet?{" "}
-                  <Link 
-                    href="/registration" 
-                    className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"
-                  >
-                    Create an account
-                  </Link>
-                </p>
-              )}
             </div>
-          </form>
-        </Card>
+            {errors.password && <p className={msgCls}>{errors.password.message}</p>}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg bg-[#0C56D0] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[#0A49B0] active:bg-[#083C92] disabled:cursor-not-allowed disabled:bg-[#A8BFE8]"
+          >
+            {isSubmitting ? <Loader size={18} /> : "Sign in"}
+          </button>
+
+          {showRegister && (
+            <p className="pt-1 text-center text-[13px] text-[#5B6472]">
+              Don&apos;t have an account yet?{" "}
+              <Link href="/registration" className="font-semibold text-[#0C56D0] hover:underline">
+                Create an account
+              </Link>
+            </p>
+          )}
+        </form>
       </div>
-    </main>
+    </div>
   );
 }

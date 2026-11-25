@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
-import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -144,13 +143,14 @@ export default function VerificationQueuePage() {
                         {formatWaiting(item.submittedAt)}
                       </td>
                       <td className="py-4 pl-5 pr-8 text-right">
+                        {/* Outline style per the design system (S48) — a light border and
+                            white fill, not the filled primary button used elsewhere. */}
                         <button
                           type="button"
                           onClick={() => setSelectedCompanyId(item.companyId)}
-                          className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-primary px-4 text-sm font-bold text-on-primary transition-colors hover:bg-primary-dim"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-outline/30 bg-transparent px-4 text-sm font-bold text-primary transition-colors hover:bg-primary/5"
                         >
                           Review
-                          <Icon name="chevron_right" size={16} />
                         </button>
                       </td>
                     </tr>
