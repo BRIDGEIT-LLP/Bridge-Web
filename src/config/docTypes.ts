@@ -17,13 +17,13 @@ export const DOC_TYPE = {
 
 export type DocType = (typeof DOC_TYPE)[keyof typeof DOC_TYPE];
 export const DOC_MAX_MB: Record<DocType, number> = {
-  AADHAAR: 5,
-  PAN: 5,
+  AADHAAR: 10,
+  PAN: 10,
   PROFILE_PHOTO: 5,
   INTRO_VIDEO: 30,
   GST_CERTIFICATE: 20,
   PITCH_DECK: 20,
-  INCORPORATION_CERTIFICATE: 20,
+  INCORPORATION_CERTIFICATE: 10,
 };
 
 /** Which face of a two-sided document (Aadhaar) is being uploaded. */
