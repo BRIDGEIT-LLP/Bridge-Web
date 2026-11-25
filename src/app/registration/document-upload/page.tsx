@@ -55,7 +55,7 @@ function maxMbFor(doc: KycRequirement) {
 /** "PNG, JPG or PDF, up to 10 MB" / "PDF only, up to 20 MB": formats from the API, size from maxMbFor. */
 function hintFor(doc: KycRequirement) {
   const names = doc.accepted_mime_types.map((m) => MIME_NAMES[m] ?? m);
-  const formats = names.length === 1 ? `${names[0]} only` : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+  const formats = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
   return `${formats}, up to ${maxMbFor(doc)} MB`;
 }
 
