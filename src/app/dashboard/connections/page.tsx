@@ -7,20 +7,16 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { isUserRole } from "@/lib/roles";
 import { ConnectionsScreen } from "@/components/dashboard/connections/ConnectionsScreen";
 import { fetchConnections, actOnConnection } from "@/services/connections.service";
-import type { StatusFilter } from "@/lib/connections";
-import type { ConnectionDirection, ConnectionRequest, ConnectionStatus } from "@/types/api.types";
+import type { ConnectionRequest, ConnectionStatus } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
 /**
- * Connections — the user's incoming/sent connection requests, filterable by status,
- * with a detail drawer to view a request and act on it (accept / decline / defer /
- * withdraw). Data + actions are API-driven via `connections.service`.
+ * Connections — the user's received/sent requests (plus a History of resolved ones),
+ * with inline + drawer actions (accept / decline for received, withdraw for sent). Data + actions are API-driven via `connections.service`.
  */
 export default function ConnectionsPage() {
   const router = useRouter();
   const { role, isLoaded } = useAuth();
-  const [direction, setDirection] = useState<ConnectionDirection>("received");
-  const [status, setStatus] = useState<StatusFilter>("ALL");
   const [requests, setRequests] = useState<ConnectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +28,13 @@ export default function ConnectionsPage() {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetchConnections(direction)
-      .then((data) => setRequests(data))
+    // Both directions are loaded up-front: the Received / Sent / History tabs (and their
+    // counts) are derived client-side by the screen.
+    Promise.all([fetchConnections("received"), fetchConnections("sent")])
+      .then(([received, sent]) => setRequests([...received, ...sent]))
       .catch(() => setError("Couldn't load your connection requests. Please try again."))
       .finally(() => setLoading(false));
-  }, [direction]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() drives loading state
@@ -50,8 +48,10 @@ export default function ConnectionsPage() {
    * the whole list for it is a wasted round-trip (and made the list flicker behind the
    * open drawer). Mirrors the `patchAdmin` pattern in admin-management.
    */
-  const patchRequest = (id: string, status: ConnectionStatus) =>
-    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+  const patchRequest = (id: string, status: ConnectionStatus, declineReason?: string) =>
+    setRequests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status, ...(declineReason ? { declineReason } : {}) } : r)),
+    );
 
   const handleAction = async (id: string, status: ConnectionStatus, reason?: string) => {
     try {
@@ -64,10 +64,10 @@ export default function ConnectionsPage() {
         return; // navigating away — no need to update the list
       }
 
-      patchRequest(id, status);
+      patchRequest(id, status, status === "DECLINED" ? reason : undefined);
     } catch (err) {
       toast.error((err as ApiError).message ?? "Couldn't complete the action. Please try again.");
-      throw err; // keep the drawer open on failure
+      throw err; // keep the drawer/modal open on failure
     }
   };
 
@@ -87,10 +87,6 @@ export default function ConnectionsPage() {
       loading={loading}
       error={error}
       onRetry={load}
-      direction={direction}
-      onDirectionChange={setDirection}
-      status={status}
-      onStatusChange={setStatus}
       onAction={handleAction}
       onView={handleView}
     />

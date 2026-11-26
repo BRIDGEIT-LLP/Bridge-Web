@@ -34,6 +34,9 @@ export interface RawConnection {
   connection_id?: number | string;
   connection_message?: string;
   product_service_details?: string;
+  match_reason?: string | null;
+  match_percentage?: number | null;
+  decline_reason?: string | null;
   connection_status?: string;
   connection_requested_at?: string;
   connection_updated_at?: string;
@@ -44,11 +47,13 @@ export interface RawConnection {
   requester_role_code?: string;
   requester_company_name?: string;
   requester_profile_photo?: string | null;
+  requester_city?: string | null;
   recipient_first_name?: string;
   recipient_last_name?: string;
   recipient_role_code?: string;
   recipient_company_name?: string;
   recipient_profile_photo?: string | null;
+  recipient_city?: string | null;
 }
 
 /** Normalize one raw backend row into the UI's ConnectionRequest. Exported for the
@@ -64,6 +69,7 @@ export function toConnectionRequest(raw: RawConnection, direction: ConnectionDir
           role: raw.recipient_role_code,
           company: raw.recipient_company_name,
           photoKey: raw.recipient_profile_photo,
+          city: raw.recipient_city,
         }
       : {
           first: raw.requester_first_name,
@@ -71,6 +77,7 @@ export function toConnectionRequest(raw: RawConnection, direction: ConnectionDir
           role: raw.requester_role_code,
           company: raw.requester_company_name,
           photoKey: raw.requester_profile_photo,
+          city: raw.requester_city,
         };
   const name = [other.first, other.last].filter(Boolean).join(" ").trim();
   const intent = Array.isArray(raw.bussiness_intent)
@@ -84,9 +91,13 @@ export function toConnectionRequest(raw: RawConnection, direction: ConnectionDir
     company: other.company ?? "",
     role: normalizeRole(other.role) ?? "startup",
     photoKey: other.photoKey,
+    city: other.city ?? "",
     intent,
     message: raw.connection_message ?? "",
     productServiceDetails: raw.product_service_details ?? "",
+    matchRationale: raw.match_reason ?? "",
+    matchPercentage: raw.match_percentage ?? null,
+    declineReason: raw.decline_reason ?? "",
     status: ((raw.connection_status ?? "PENDING").toUpperCase() as ConnectionStatus),
     createdAt: raw.connection_requested_at ?? "",
     updatedAt: raw.connection_updated_at ?? raw.connection_requested_at ?? "",
