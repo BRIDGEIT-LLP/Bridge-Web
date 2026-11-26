@@ -33,6 +33,10 @@ export interface ProposalRecipient {
   name: string;
   company: string;
   role: Role | null;
+  /** The engine's "why matched" text for this profile, forwarded with the request. */
+  rationale?: string | null;
+  /** The engine's compatibility score (0–100) for this profile, forwarded with the request. */
+  matchPercentage?: number | null;
 }
 
 interface ProposalFormModalProps {
@@ -83,6 +87,8 @@ export function ProposalFormModal({ open, onClose, recipient, sender, onSent }: 
         bussinessIntent: values.intent,
         expectedDealSize: values.expectedDealSize?.trim() ?? "",
         productServiceDetails: values.productServiceDetails?.trim() ?? "",
+        ...(recipient.rationale?.trim() ? { matchRationale: recipient.rationale.trim() } : {}),
+        ...(typeof recipient.matchPercentage === "number" ? { matchPercentage: Math.round(recipient.matchPercentage) } : {}),
       });
       toast.success("Connection request sent.");
       onSent?.();

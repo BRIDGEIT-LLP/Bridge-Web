@@ -1110,6 +1110,11 @@ export interface SendConnectionRequestPayload {
   bussinessIntent: string[];
   expectedDealSize: string;
   productServiceDetails: string;
+  /** Why the engine matched the two profiles (the Explore card's `rationale`); stored and
+   *  shown to the recipient. Optional — absent when sent from a plain profile page. */
+  matchRationale?: string;
+  /** Matching-engine compatibility (0–100) shown on the Explore card; stored with the request. */
+  matchPercentage?: number;
 }
 
 /** Response from POST /api/v1/connection. */
@@ -1141,6 +1146,14 @@ export interface ConnectionRequest {
   role: Role;
   /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
   photoKey?: string | null;
+  /** Counterparty's city (`user.city`); empty when not set. */
+  city?: string;
+  /** Why the two profiles were matched (sender's match rationale); empty when none stored. */
+  matchRationale?: string;
+  /** Matching-engine compatibility (0–100) at the time the request was sent; null when none stored. */
+  matchPercentage?: number | null;
+  /** Why the recipient declined (set only on declined requests); empty when none stored. */
+  declineReason?: string;
   intent: string;
   message?: string;
   productServiceDetails?: string;

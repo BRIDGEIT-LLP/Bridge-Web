@@ -112,6 +112,8 @@ export function ProfileShortsDeck({ matches, loading, error, onReload }: Profile
           name: [current.first_name, current.last_name].filter(Boolean).join(" ").trim(),
           company: current.organization_name,
           role: normalizeRole(current.role),
+          rationale: current.rationale,
+          matchPercentage: current.compatibility,
         });
         return;
       }

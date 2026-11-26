@@ -9,7 +9,8 @@ import { Loader } from "@/components/common/loader";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import { ConnectionAvatar } from "@/components/dashboard/connections/ConnectionsList";
 import { formatDate } from "@/lib/admin-format";
-import { ACTION_TO_STATUS, CONNECTION_STATUS_META, actionOptions, roleLabelFor } from "@/lib/connections";
+import { intentLabel } from "@/lib/connection-intent-options";
+import { ACTION_TO_STATUS, CONNECTION_STATUS_META, actionOptions, displayStatus, rationaleReasons, roleLabelFor } from "@/lib/connections";
 import type { ConnectionActionType, ConnectionRequest, ConnectionStatus } from "@/types/api.types";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -86,14 +87,22 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
       {request && (
         <>
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <ConnectionAvatar name={request.name} role={request.role} size={48} photoKey={request.photoKey} />
+            <ConnectionAvatar name={request.name} size={48} photoKey={request.photoKey} />
             <div className="min-w-0 flex-1 basis-40">
               <p className="truncate font-headline text-base font-bold text-on-surface">{request.name}</p>
               <p className="truncate text-sm text-on-surface-variant">
                 {roleLabelFor(request.role)} · {request.company}
               </p>
             </div>
-            <StatusPill {...CONNECTION_STATUS_META[request.status]} />
+            <StatusPill {...CONNECTION_STATUS_META[displayStatus(request.status)]} />
+            {typeof request.matchPercentage === "number" && (
+              <div className="flex shrink-0 flex-col items-end gap-0.5">
+                <b className="font-headline text-[22px] font-bold leading-none tabular-nums tracking-[-0.01em] text-primary">
+                  {request.matchPercentage}%
+                </b>
+                <span className="text-[11px] text-[#5B6472]">fit</span>
+              </div>
+            )}
           </div>
 
           {/* Request details (what was sent) */}
@@ -103,7 +112,7 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
               <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-variant/70">Purpose / Intent</p>
               <p className="mt-1 flex min-w-0 items-start gap-1.5 text-sm font-semibold text-on-surface">
                 <Icon name="bolt" size={15} className="mt-0.5 shrink-0 text-primary" />
-                <span className="min-w-0 break-words">{request.intent}</span>
+                <span className="min-w-0 break-words">{intentLabel(request.intent)}</span>
               </p>
             </div>
             <div>
@@ -134,11 +143,26 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
             </div>
           </div>
 
+          {/* Why the engine matched the two profiles (received requests only) */}
+          {request.direction === "received" && rationaleReasons(request.matchRationale).length > 0 && (
+            <>
+              <SectionTitle>Why you were matched</SectionTitle>
+              <ul className="space-y-1.5 rounded-xl border border-outline/10 bg-surface-container-low p-3 sm:p-4">
+                {rationaleReasons(request.matchRationale).map((reason) => (
+                  <li key={reason} className="flex gap-2 text-sm text-on-surface">
+                    <Icon name="check" size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+                    <span>{reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
           {/* Action */}
           <SectionTitle>Take Action</SectionTitle>
           {options.length === 0 ? (
             <p className="rounded-xl border border-dashed border-outline-variant/40 px-4 py-6 text-center text-sm text-on-surface-variant">
-              No actions available for a {CONNECTION_STATUS_META[request.status].label.toLowerCase()} request.
+              No actions available for a {CONNECTION_STATUS_META[displayStatus(request.status)].label.toLowerCase()} request.
             </p>
           ) : (
             <div className="space-y-3">

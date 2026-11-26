@@ -21,3 +21,29 @@ export const CONNECTION_INTENT_OPTIONS: Partial<Record<Role, Option[]>> = {
 /** Intent options for a role (empty array for staff/unknown roles). */
 export const getIntentOptions = (role: Role | null | undefined): Option[] =>
   role ? CONNECTION_INTENT_OPTIONS[role] ?? [] : [];
+
+const INTENT_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(CONNECTION_INTENT_OPTIONS)
+    .flat()
+    .map((o) => [o.value, o.label]),
+);
+
+const humanize = (code: string) => {
+  const t = code.replace(/_/g, " ").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+/**
+ * Readable label for a stored intent code (e.g. `seed_investment` → "Seeking Seed
+ * Investment"). Accepts the service's comma-joined multi-value string; unknown codes
+ * fall back to a humanized version so a raw snake_case value never reaches the UI.
+ */
+export function intentLabel(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .map((c) => INTENT_LABELS[c] ?? humanize(c))
+    .join(", ");
+}
