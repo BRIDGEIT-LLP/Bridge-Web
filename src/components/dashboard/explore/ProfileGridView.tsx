@@ -55,6 +55,8 @@ export function ProfileGridView({ matches, loading, error, onReload }: ProfileGr
                   name: [m.first_name, m.last_name].filter(Boolean).join(" ").trim(),
                   company: m.organization_name,
                   role: normalizeRole(m.role),
+                  rationale: m.rationale,
+                  matchPercentage: m.compatibility,
                 })
               }
               onViewProfile={setProfileMatch}
